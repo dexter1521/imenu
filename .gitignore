@@ -1,0 +1,171 @@
+# ============================================
+# iMenu - Git Ignore Configuration
+# ============================================
+
+# ------------------------------
+# ARCHIVOS SENSIBLES Y CONFIGURACIÓN
+# ------------------------------
+# Variables de entorno
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Configuración de base de datos personalizada
+application/config/database.php.local
+application/config/config.php.local
+
+# Archivos de instalación (en producción)
+install.php
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.temp
+*.pid
+*.lock
+
+# ------------------------------
+# CODEIGNITER ESPECÍFICO
+# ------------------------------
+application/cache/*
+!application/cache/index.html
+!application/cache/.htaccess
+
+application/logs/*
+!application/logs/index.html
+!application/logs/.htaccess
+
+!application/*/.htaccess
+
+# ------------------------------
+# COMPOSER Y DEPENDENCIAS
+# ------------------------------
+/vendor/
+composer.lock
+composer.phar
+
+# ------------------------------
+# ARCHIVOS SUBIDOS POR USUARIOS
+# ------------------------------
+uploads/*
+!uploads/.htaccess
+!uploads/README.md
+
+# QR codes generados
+uploads/tenants/*/qr.png
+
+# ------------------------------
+# BASES DE DATOS Y BACKUPS
+# ------------------------------
+*.sqlite
+*.sqlite3
+*.db
+db/backup/*
+db/exports/*
+
+# ------------------------------
+# IDE Y EDITORES
+# ------------------------------
+# VS Code
+.vscode/
+*.code-workspace
+
+# PHPStorm / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# NetBeans
+/nbproject/
+
+# ------------------------------
+# SISTEMA OPERATIVO
+# ------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.nfs*
+
+# ------------------------------
+# NODE.JS (si se usa para assets)
+# ------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# ------------------------------
+# ARCHIVOS DE CONSTRUCCIÓN Y TESTING
+# ------------------------------
+/tests/tests/
+/tests/results/
+/tests/mocks/database/ci_test.sqlite
+
+# Coverage reports
+/coverage/
+*.coverage
+
+# Testing
+phpunit.xml
+.phpunit.result.cache
+
+# Build outputs
+/build/
+/dist/
+
+# ------------------------------
+# ARCHIVOS VARIOS
+# ------------------------------
+# Archivos de documentación temporal
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+
+# Archivos comprimidos
+*.rar
+*.zip
+*.tar.gz
+*.7z
+
+# Archivos de configuración local
+*.local
+*.dev
+
+# Smoke / test reports
+/smoke-report.json
+scripts/*.report.json
+
+# User guide build
+user_guide_src/build/*
+user_guide_src/cilexer/build/*
+user_guide_src/cilexer/dist/*
+user_guide_src/cilexer/pycilexer.egg-info/*
+
+# Carpetas de archivos legacy (comentadas actualmente)
+# archivos/*
+# Carpeta_penal/*

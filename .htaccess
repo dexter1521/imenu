@@ -1,0 +1,157 @@
+# ============================================
+# iMenu - Configuración de Apache (.htaccess)
+# ============================================
+
+# ------------------------------
+# REWRITE ENGINE Y URL AMIGABLES
+# ------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirect HTTP to HTTPS (descomenta si usas SSL)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # CodeIgniter URL rewriting
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
+</IfModule>
+
+# ------------------------------
+# PROTECCIÓN DE ARCHIVOS Y CARPETAS SENSIBLES
+# ------------------------------
+
+# Bloquear acceso a carpetas del sistema CodeIgniter
+<IfModule mod_rewrite.c>
+    # Carpeta system/
+    RewriteCond %{REQUEST_URI} ^system.*
+    RewriteRule ^(.*)$ index.php?/access_denied [L]
+    
+    # Carpeta application/
+    RewriteCond %{REQUEST_URI} ^application.*
+    RewriteRule ^(.*)$ index.php?/access_denied [L]
+</IfModule>
+
+# Bloquear acceso a Git
+<FilesMatch "^\.git">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear acceso a archivos de configuración
+<FilesMatch "\.(env|env\.local|env\.production|gitignore|htaccess|htpasswd)$">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear acceso a archivos de proyecto
+<FilesMatch "(composer\.(json|lock)|package\.(json|lock)|\.editorconfig|TODO\.md|README\.md|license\.txt|readme\.rst)$">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear acceso a install.php en producción (descomenta cuando esté en producción)
+# <Files "install.php">
+#     <IfModule authz_core_module>
+#         Require all denied
+#     </IfModule>
+#     <IfModule !authz_core_module>
+#         Order allow,deny
+#         Deny from all
+#     </IfModule>
+# </Files>
+
+# Bloquear archivos PHP de backup
+<FilesMatch "\.(bak|backup|old|orig|save|swp|tmp)$">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ------------------------------
+# HEADERS DE SEGURIDAD
+# ------------------------------
+<IfModule mod_headers.c>
+    # Prevenir clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # Prevenir MIME type sniffing
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # Activar protección XSS
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy básico (ajusta según necesidades)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'"
+    
+    # Eliminar headers que revelan información del servidor
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# ------------------------------
+# CONFIGURACIÓN DE CACHE
+# ------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Assets estáticos
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+    
+    # No cachear APIs y contenido dinámico
+    ExpiresByType application/json "access plus 0 seconds"
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# ------------------------------
+# LÍMITES Y RENDIMIENTO
+# ------------------------------
+# Límite de tamaño de archivo (para uploads)
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+
+# Límites de tiempo
+php_value max_execution_time 30
+php_value max_input_time 30
+
+# Ocultar errores PHP en producción (descomenta en producción)
+# php_flag display_errors Off
+# php_flag log_errors On
+
+# ------------------------------
+# PROTECCIÓN HOTLINKING (opcional)
+# ------------------------------
+# RewriteCond %{HTTP_REFERER} !^$
+# RewriteCond %{HTTP_REFERER} !^http(s)?://(www\.)?tudominio.com [NC]
+# RewriteRule \.(jpg|jpeg|png|gif)$ - [NC,F,L]
