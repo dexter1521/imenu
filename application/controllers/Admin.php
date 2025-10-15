@@ -7,13 +7,10 @@ class Admin extends MY_Controller
 		parent::__construct();
 		$this->load->database();
 		$this->load->helper('auth');
-		
-		// Para endpoints API que requieren autenticación JWT
-		$view_methods = ['tenants_view', 'planes_view', 'pagos_view'];
-		if (!in_array($this->router->fetch_method(), $view_methods)) {
-			$this->output->set_content_type('application/json');
-			jwt_require('admin');
-		}
+
+		// Configurar vistas permitidas en el constructor
+		$this->allowed_views = ['tenants_view', 'planes_view', 'pagos_view'];
+		$this->validate_view_access();
 	}
 
 	// ===== Vistas del Panel Admin =====

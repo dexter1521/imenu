@@ -40,9 +40,17 @@ class MY_Controller extends CI_Controller
 	 */
 	protected $data = [];
 
+	// Centralizar validación de vistas permitidas
+	protected $allowed_views = [];
+
 	public function __construct()
 	{
 		parent::__construct();
+
+		// Validar autenticación para todos los controladores que extienden MY_Controller
+		if (!$this->_verify_auth()) {
+			exit;
+		}
 
 		// Datos comunes para todas las vistas
 		$this->data['page_title'] = 'iMenu';
@@ -117,5 +125,56 @@ class MY_Controller extends CI_Controller
 
 		$data = array_merge($this->data, $data);
 		$this->load->view($page, $data);
+	}
+
+	/**
+	 * Verificar autenticación del usuario
+	 */
+	protected function _verify_auth()
+	{
+		$tenant_id = current_tenant_id();
+
+		if (!$tenant_id) {
+			$this->_api_error(401, 'Acceso no autorizado');
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Manejar errores de API
+	 */
+	protected function _api_error($code, $message)
+	{
+		http_response_code($code);
+		echo json_encode(['ok' => false, 'msg' => $message]);
+		exit;
+	}
+
+	/**
+	 * Validar acceso al tenant
+	 */
+	protected function _validate_tenant_access($resource_tenant_id)
+	{
+		$current_tenant = current_tenant_id();
+
+		if ($resource_tenant_id != $current_tenant) {
+			$this->_api_error(403, 'Acceso denegado');
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Validar vistas permitidas para el controlador
+	 */
+	protected function validate_view_access()
+	{
+		$current_method = $this->router->fetch_method();
+		if (!empty($this->allowed_views) && !in_array($current_method, $this->allowed_views)) {
+			$this->_api_error(403, 'Acceso denegado a la vista: ' . $current_method);
+		}
 	}
 }
