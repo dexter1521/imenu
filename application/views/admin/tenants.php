@@ -33,45 +33,52 @@
 	</div>
 </div>
 
-	<!-- Modal: Crear/Editar Tenant -->
-	<div class="modal fade" id="tenantModal" tabindex="-1" role="dialog" aria-hidden="true">
-		<div class="modal-dialog" role="document">
-			<div class="modal-content">
-				<form id="tenant-form">
-					<div class="modal-header">
-						<h5 class="modal-title">Crear Tenant</h5>
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-							<span aria-hidden="true">&times;</span>
-						</button>
+<!-- Modal: Crear/Editar Tenant -->
+<div class="modal fade" id="tenantModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<form id="tenant-form">
+				<div class="modal-header">
+					<h5 class="modal-title">Crear Tenant</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<input type="hidden" id="tenant-id" name="tenant-id">
+					<div class="form-group">
+						<label for="tenant-nombre">Nombre</label>
+						<input type="text" class="form-control" id="tenant-nombre" name="nombre" required>
 					</div>
-					<div class="modal-body">
-						<div class="form-group">
-							<label for="tenant-nombre">Nombre</label>
-							<input type="text" class="form-control" id="tenant-nombre" name="nombre" required>
-						</div>
-						<div class="form-group">
-							<label for="tenant-slug">Slug (opcional)</label>
-							<input type="text" class="form-control" id="tenant-slug" name="slug">
-						</div>
-						<div class="form-group">
-							<label for="tenant-whatsapp">WhatsApp</label>
-							<input type="text" class="form-control" id="tenant-whatsapp" name="whatsapp">
-						</div>
-						<div class="form-group form-check">
-							<input type="checkbox" class="form-check-input" id="tenant-activo" name="activo" checked>
-							<label class="form-check-label" for="tenant-activo">Activo</label>
-						</div>
+					<div class="form-group">
+						<label for="tenant-slug">Slug (opcional)</label>
+						<input type="text" class="form-control" id="tenant-slug" name="slug">
 					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-						<button type="submit" class="btn btn-primary">Guardar</button>
+					<div class="form-group">
+						<label for="tenant-whatsapp">WhatsApp</label>
+						<input type="text" class="form-control" id="tenant-whatsapp" name="whatsapp">
 					</div>
-				</form>
-			</div>
+					<div class="form-group">
+						<label for="tenant-plan-id">Plan Asignado</label>
+						<select class="form-control" id="tenant-plan-id" name="plan_id">
+							<option value="">Cargando planes...</option>
+						</select>
+					</div>
+					<div class="form-group form-check">
+						<input type="checkbox" class="form-check-input" id="tenant-activo" name="activo" checked>
+						<label class="form-check-label" for="tenant-activo">Activo</label>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+					<button type="submit" class="btn btn-primary">Guardar</button>
+				</div>
+			</form>
 		</div>
 	</div>
+</div>
 
-	<script src="/assets/js/admin.js"></script>
+<script src="/assets/js/admin.js"></script>
 <!-- Stats Cards -->
 <div class="row">
 	<div class="col-xl-3 col-md-6 mb-4">

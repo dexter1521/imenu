@@ -85,7 +85,7 @@
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded'
 				},
-				body: params
+				body: params.toString()
 			});
 
 			// Leer como texto y luego intentar parsear JSON (evita "body stream already read")

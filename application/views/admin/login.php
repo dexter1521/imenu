@@ -100,7 +100,7 @@
 		// Rutas para el JS de login; generadas por CodeIgniter para respetar index.php y base_url
 		window.IMENU = window.IMENU || {};
 		window.IMENU.routes = {
-			login: '<?php echo site_url('admin/auth'); ?>',
+			login: '<?php echo site_url('adminauth/login'); ?>',
 			// Redirigimos al listado principal del admin (tenants_view) para evitar 404 en /admin
 			admin: '<?php echo site_url('admin/tenants_view'); ?>'
 		};

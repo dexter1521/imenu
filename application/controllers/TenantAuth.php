@@ -42,7 +42,13 @@ class TenantAuth extends CI_Controller
 			if ($secure) $cookie_header .= '; Secure';
 			header('Set-Cookie: ' . $cookie_header);
 
-			return $this->output->set_output(json_encode(['ok' => true, 'rol' => $u->rol, 'tenant_id' => (int)$u->tenant_id]));
+			// Retornar token en respuesta para compatibilidad con JavaScript
+			return $this->output->set_output(json_encode([
+				'ok' => true,
+				'rol' => $u->rol,
+				'tenant_id' => (int)$u->tenant_id,
+				'token' => $token // Agregar el token en la respuesta
+			]));
 		} catch (Exception $e) {
 			$this->output->set_status_header(500);
 			return $this->output->set_output(json_encode(['ok' => false, 'msg' => 'Server error', 'error' => $e->getMessage()]));

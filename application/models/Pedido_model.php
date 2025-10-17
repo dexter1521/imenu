@@ -125,18 +125,18 @@ class Pedido_model extends CI_Model
 		}
 
 		$this->db->group_by('p.id');
-		
+
 		// Ordenamiento
 		$orden_campo = 'p.creado_en';
 		$orden_direccion = !empty($filters['orden']) && $filters['orden'] === 'asc' ? 'ASC' : 'DESC';
-		
+
 		if (!empty($filters['order_by'])) {
 			$campos_validos = ['creado_en', 'total', 'estado', 'nombre_cliente'];
 			if (in_array($filters['order_by'], $campos_validos)) {
 				$orden_campo = 'p.' . $filters['order_by'];
 			}
 		}
-		
+
 		$this->db->order_by($orden_campo, $orden_direccion);
 
 		// Paginación
@@ -153,7 +153,7 @@ class Pedido_model extends CI_Model
 	public function get_with_items($tenant_id, $pedido_id)
 	{
 		$pedido = $this->db->get_where('pedidos', [
-			'tenant_id' => $tenant_id, 
+			'tenant_id' => $tenant_id,
 			'id' => $pedido_id
 		], 1)->row();
 
@@ -180,7 +180,7 @@ class Pedido_model extends CI_Model
 			'tenant_id' => $tenant_id,
 			'id' => $pedido_id
 		]);
-		
+
 		$updated = $this->db->update('pedidos', ['estado' => $estado]);
 		return $this->db->affected_rows() > 0;
 	}
@@ -205,7 +205,7 @@ class Pedido_model extends CI_Model
 
 		// Eliminar items
 		$this->db->delete('pedido_items', ['pedido_id' => $pedido_id]);
-		
+
 		// Eliminar pedido
 		$this->db->delete('pedidos', ['id' => $pedido_id]);
 
@@ -250,11 +250,11 @@ class Pedido_model extends CI_Model
 	public function get_stats($tenant_id, $fecha_inicio = null, $fecha_fin = null)
 	{
 		$this->db->where('tenant_id', $tenant_id);
-		
+
 		if ($fecha_inicio) {
 			$this->db->where('creado_en >=', $fecha_inicio);
 		}
-		
+
 		if ($fecha_fin) {
 			$this->db->where('creado_en <=', $fecha_fin);
 		}

@@ -8,9 +8,24 @@ class App extends MY_Controller
 		$this->load->database();
 		$this->load->helper('auth');
 
+		// Cargar modelos necesarios con alias en minúsculas
+		$this->load->model('Categoria_model', 'categoria_model');
+		$this->load->model('Producto_model', 'producto_model');
+		$this->load->model('Ajustes_model', 'ajustes_model');
+		$this->load->model('Tenant_model', 'tenant_model');
+
 		// Configurar vistas permitidas en el constructor
 		$this->allowed_views = ['dashboard_view', 'categorias_view', 'productos_view', 'ajustes_view'];
 		$this->validate_view_access();
+	}
+
+	/**
+	 * Muestra la página de login para los tenants.
+	 * Esta ruta está excluida de la verificación de sesión en MY_Controller.
+	 */
+	public function login()
+	{
+		$this->load->view('app/login');
 	}
 
 	// ===== Vistas del Panel =====
@@ -42,9 +57,9 @@ class App extends MY_Controller
 	public function dashboard()
 	{
 		$tid = current_tenant_id();
-		$c1 = $this->db->where('tenant_id', $tid)->count_all_results('categorias');
-		$c2 = $this->db->where('tenant_id', $tid)->count_all_results('productos');
-		$plan = $this->db->select('p.*')->from('tenants t')->join('planes p', 'p.id=t.plan_id', 'left')->where('t.id', $tid)->get()->row();
+		$c1 = $this->categoria_model->count_by_tenant($tid);
+		$c2 = $this->producto_model->count_by_tenant($tid);
+		$plan = $this->tenant_model->get_with_plan($tid);
 		echo json_encode(['ok' => true, 'stats' => ['categorias' => $c1, 'productos' => $c2], 'plan' => $plan]);
 	}
 
@@ -52,8 +67,7 @@ class App extends MY_Controller
 	public function categorias()
 	{ // GET
 		$tid = current_tenant_id();
-		$this->db->order_by('orden');
-		$rows = $this->db->get_where('categorias', ['tenant_id' => $tid])->result();
+		$rows = $this->categoria_model->get_by_tenant($tid);
 		echo json_encode(['ok' => true, 'data' => $rows]);
 	}
 
@@ -66,8 +80,8 @@ class App extends MY_Controller
 			'orden' => (int)$this->input->post('orden')
 		];
 		$this->enforce_limits($tid, 'categorias');
-		$this->db->insert('categorias', $data);
-		echo json_encode(['ok' => true, 'id' => $this->db->insert_id()]);
+		$id = $this->categoria_model->create($data);
+		echo json_encode(['ok' => true, 'id' => $id]);
 	}
 
 	public function categoria_update($id)
@@ -77,14 +91,14 @@ class App extends MY_Controller
 		foreach (['nombre', 'orden', 'activo'] as $k) {
 			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
 		}
-		$this->db->update('categorias', $data, ['id' => $id, 'tenant_id' => $tid]);
+		$this->categoria_model->update($id, $tid, $data);
 		echo json_encode(['ok' => true]);
 	}
 
 	public function categoria_delete($id)
 	{
 		$tid = current_tenant_id();
-		$this->db->delete('categorias', ['id' => $id, 'tenant_id' => $tid]);
+		$this->categoria_model->delete($id, $tid);
 		echo json_encode(['ok' => true]);
 	}
 
@@ -92,8 +106,7 @@ class App extends MY_Controller
 	public function productos()
 	{ // GET
 		$tid = current_tenant_id();
-		$this->db->order_by('orden');
-		$rows = $this->db->get_where('productos', ['tenant_id' => $tid])->result();
+		$rows = $this->producto_model->get_by_tenant($tid);
 		echo json_encode(['ok' => true, 'data' => $rows]);
 	}
 
@@ -112,8 +125,8 @@ class App extends MY_Controller
 			'destacado' => (int)$this->input->post('destacado', true) ?: 0,
 		];
 		$this->enforce_limits($tid, 'productos');
-		$this->db->insert('productos', $data);
-		echo json_encode(['ok' => true, 'id' => $this->db->insert_id()]);
+		$id = $this->producto_model->create($data);
+		echo json_encode(['ok' => true, 'id' => $id]);
 	}
 
 	public function producto_update($id)
@@ -124,14 +137,14 @@ class App extends MY_Controller
 		foreach ($allowed as $k) {
 			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
 		}
-		$this->db->update('productos', $data, ['id' => $id, 'tenant_id' => $tid]);
+		$this->producto_model->update($id, $tid, $data);
 		echo json_encode(['ok' => true]);
 	}
 
 	public function producto_delete($id)
 	{
 		$tid = current_tenant_id();
-		$this->db->delete('productos', ['id' => $id, 'tenant_id' => $tid]);
+		$this->producto_model->delete($id, $tid);
 		echo json_encode(['ok' => true]);
 	}
 
@@ -139,7 +152,7 @@ class App extends MY_Controller
 	public function ajustes_get()
 	{
 		$tid = current_tenant_id();
-		$row = $this->db->get_where('ajustes', ['tenant_id' => $tid], 1)->row();
+		$row = $this->ajustes_model->get_by_tenant($tid);
 		echo json_encode(['ok' => true, 'data' => $row]);
 	}
 
@@ -150,12 +163,7 @@ class App extends MY_Controller
 		foreach (['idioma', 'moneda', 'formato_precio', 'notas', 'show_precios', 'show_imgs'] as $k) {
 			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
 		}
-		$exists = $this->db->get_where('ajustes', ['tenant_id' => $tid], 1)->row();
-		if ($exists) $this->db->update('ajustes', $data, ['tenant_id' => $tid]);
-		else {
-			$data['tenant_id'] = $tid;
-			$this->db->insert('ajustes', $data);
-		}
+		$this->ajustes_model->upsert($tid, $data);
 		echo json_encode(['ok' => true]);
 	}
 
@@ -163,17 +171,17 @@ class App extends MY_Controller
 	private function enforce_limits($tenant_id, $tipo)
 	{
 		// $tipo: 'categorias'|'productos'
-		$plan = $this->db->select('p.*')->from('tenants t')->join('planes p', 'p.id=t.plan_id', 'left')->where('t.id', $tenant_id)->get()->row();
+		$plan = $this->tenant_model->get_with_plan($tenant_id);
 		if (!$plan) return; // sin plan = sin límite
 		if ($tipo === 'categorias') {
-			$count = $this->db->where('tenant_id', $tenant_id)->count_all_results('categorias');
+			$count = $this->categoria_model->count_by_tenant($tenant_id);
 			if ($plan->limite_categorias && $count >= $plan->limite_categorias) {
 				http_response_code(422);
 				echo json_encode(['ok' => false, 'msg' => 'Límite de categorías alcanzado']);
 				exit;
 			}
 		} else if ($tipo === 'productos') {
-			$count = $this->db->where('tenant_id', $tenant_id)->count_all_results('productos');
+			$count = $this->producto_model->count_by_tenant($tenant_id);
 			if ($plan->limite_items && $count >= $plan->limite_items) {
 				http_response_code(422);
 				echo json_encode(['ok' => false, 'msg' => 'Límite de productos alcanzado']);
@@ -609,8 +617,7 @@ class App extends MY_Controller
 
 		if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 			// Obtener configuración actual
-			$this->db->select('notif_email, notif_webhook, notif_whatsapp');
-			$config = $this->db->get_where('tenants', ['id' => $tid], 1)->row();
+			$config = $this->tenant_model->get_notification_config($tid);
 
 			echo json_encode([
 				'ok' => true,
@@ -642,7 +649,7 @@ class App extends MY_Controller
 				return;
 			}
 
-			// Actualizar en base de datos
+			// Actualizar usando el modelo
 			$update_data = [
 				'notif_email' => $notif_email ?: null,
 				'notif_webhook' => $notif_webhook ?: null,
@@ -650,7 +657,7 @@ class App extends MY_Controller
 			];
 
 			try {
-				$this->db->update('tenants', $update_data, ['id' => $tid]);
+				$this->tenant_model->update_notification_config($tid, $update_data);
 				echo json_encode(['ok' => true, 'msg' => 'Configuración actualizada']);
 			} catch (Exception $e) {
 				log_message('error', 'Error actualizando config notificaciones: ' . $e->getMessage());

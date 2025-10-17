@@ -21,13 +21,19 @@ if (!function_exists('jwt_from_request')) {
 		];
 		$hdr = '';
 		foreach ($possible as $k) {
-			if (!empty($_SERVER[$k])) { $hdr = $_SERVER[$k]; break; }
+			if (!empty($_SERVER[$k])) {
+				$hdr = $_SERVER[$k];
+				break;
+			}
 		}
 		// apache_request_headers (case-insensitive)
 		if (!$hdr && function_exists('apache_request_headers')) {
 			$hs = apache_request_headers();
 			foreach ($hs as $hk => $hv) {
-				if (strtolower($hk) === 'authorization') { $hdr = $hv; break; }
+				if (strtolower($hk) === 'authorization') {
+					$hdr = $hv;
+					break;
+				}
 			}
 		}
 		if ($hdr && preg_match('/Bearer\s+(\S+)/i', $hdr, $m)) {
@@ -46,16 +52,23 @@ if (!function_exists('jwt_issue')) {
 	function jwt_issue($uid, $tenant_id, $rol, $ttl = 3600)
 	{
 		$now = time();
+
+		// Obtener nombre del usuario desde la base de datos
+		$CI = &get_instance();
+		$CI->load->database();
+		$user = $CI->db->select('nombre')->where('id', $uid)->get('users')->row();
+		$nombre = $user ? $user->nombre : 'Usuario';
+
 		$payload = [
 			'iss' => base_url(),
 			'sub' => $uid,
 			'tenant_id' => $tenant_id,
 			'rol' => $rol,
+			'nombre' => $nombre, // Agregar nombre al payload
 			'iat' => $now,
 			'nbf' => $now,
 			'exp' => $now + $ttl
 		];
-		$CI = &get_instance();
 		$CI->load->library('JWT');
 		// usar la instancia wrapper creada por la librería
 		if (isset($CI->jwt) && method_exists($CI->jwt, 'encode')) {
@@ -124,5 +137,64 @@ if (!function_exists('current_role')) {
 	{
 		$CI = &get_instance();
 		return isset($CI->jwt->rol) ? $CI->jwt->rol : null;
+	}
+}
+
+if (!function_exists('jwt_decode_from_cookie')) {
+	/**
+	 * Decodifica el JWT desde la cookie y retorna el payload
+	 * @return array|null Retorna el payload del JWT o null si no es válido
+	 */
+	function jwt_decode_from_cookie()
+	{
+		$token = jwt_from_request();
+		if (!$token) {
+			return null;
+		}
+
+		try {
+			$CI = &get_instance();
+			$CI->load->library('JWT');
+
+			if (isset($CI->jwt) && method_exists($CI->jwt, 'decode')) {
+				$payload = $CI->jwt->decode($token);
+				// Convertir objeto a array para facilitar el acceso
+				return json_decode(json_encode($payload), true);
+			} else if (class_exists('\\Firebase\\JWT\\JWT')) {
+				$secret = jwt_secret();
+				if (class_exists('Firebase\\JWT\\Key')) {
+					$decoded = \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key($secret, 'HS256'));
+				} else {
+					$decoded = \Firebase\JWT\JWT::decode($token, $secret, ['HS256']);
+				}
+				return json_decode(json_encode($decoded), true);
+			}
+		} catch (Exception $e) {
+			log_message('error', 'Error decodificando JWT: ' . $e->getMessage());
+			return null;
+		}
+
+		return null;
+	}
+}
+
+if (!function_exists('is_authenticated')) {
+	/**
+	 * Verifica si el usuario tiene un JWT válido
+	 * @return bool
+	 */
+	function is_authenticated()
+	{
+		$payload = jwt_decode_from_cookie();
+		if (!$payload) {
+			return false;
+		}
+
+		// Verificar que el token no haya expirado
+		if (isset($payload['exp']) && $payload['exp'] < time()) {
+			return false;
+		}
+
+		return true;
 	}
 }

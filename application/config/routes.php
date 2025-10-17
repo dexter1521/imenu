@@ -97,8 +97,33 @@ $route['api/app/pedido/(:num)']['get']  = 'app/pedido/$1';
 
 // Ruta para el login de administradores saas (global)
 $route['admin/auth'] = 'AdminAuth/login';
+$route['adminauth/login'] = 'AdminAuth/login';
+$route['adminauth/logout'] = 'AdminAuth/logout';
+
+// Panel administrativo SaaS - Landing de login (sin autenticación)
+$route['adminpanel/login'] = 'AdminPanel/login';
+
+// Vistas del panel admin (requieren autenticación JWT con rol admin)
+$route['admin/tenants_view'] = 'Admin/tenants_view';
+$route['admin/planes_view'] = 'Admin/planes_view';
+$route['admin/pagos_view'] = 'Admin/pagos_view';
+$route['admin/dashboard_view'] = 'Admin/dashboard_view';
+
+// API endpoints del panel admin
+$route['api/admin/tenants']['get'] = 'Admin/tenants';
+$route['api/admin/tenant']['post'] = 'Admin/tenant_create';
+$route['api/admin/tenant/(:num)']['post'] = 'Admin/tenant_update/$1';
+$route['api/admin/tenant/(:num)']['delete'] = 'Admin/tenant_delete/$1';
+$route['api/admin/planes']['get'] = 'Admin/planes';
+$route['api/admin/plan']['post'] = 'Admin/plan_create';
+$route['api/admin/plan/(:num)']['post'] = 'Admin/plan_update/$1';
+$route['api/admin/plan/(:num)']['delete'] = 'Admin/plan_delete/$1';
+$route['api/admin/pagos']['get'] = 'Admin/pagos';
+
 // Ruta para el login de tenants (global)
 $route['app/auth'] = 'TenantAuth/login';
+$route['tenantauth/login'] = 'TenantAuth/login';
+$route['tenantauth/logout'] = 'TenantAuth/logout';
 
 // Compatibilidad para logout antiguo
 $route['api/auth/logout'] = 'TenantAuth/logout';

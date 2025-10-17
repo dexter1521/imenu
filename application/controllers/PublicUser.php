@@ -9,18 +9,21 @@ class PublicUser extends CI_Controller
 	{
 		parent::__construct();
 		$this->load->database();
+		$this->load->model('Tenant_model', 'tenant_model');
+		$this->load->model('Categoria_model', 'categoria_model');
+		$this->load->model('Producto_model', 'producto_model');
+		$this->load->model('Ajustes_model', 'ajustes_model');
+		$this->load->model('Pedido_model', 'pedido_model');
 	}
 
 	// Vista HTML: /r/{slug}
 	public function menu($slug)
 	{
-		$tenant = $this->db->get_where('tenants', ['slug' => $slug, 'activo' => 1], 1)->row();
+		$tenant = $this->tenant_model->get_by_slug_active($slug);
 		if (!$tenant) show_404();
-		$this->db->order_by('orden');
-		$cats = $this->db->get_where('categorias', ['tenant_id' => $tenant->id, 'activo' => 1])->result();
-		$this->db->order_by('orden');
-		$prods = $this->db->get_where('productos', ['tenant_id' => $tenant->id, 'activo' => 1])->result();
-		$aj   = $this->db->get_where('ajustes', ['tenant_id' => $tenant->id], 1)->row();
+		$cats = $this->categoria_model->get_by_tenant($tenant->id, true);
+		$prods = $this->producto_model->get_by_tenant($tenant->id, true);
+		$aj   = $this->ajustes_model->get_by_tenant($tenant->id);
 		$data = compact('tenant', 'cats', 'prods', 'aj');
 		$this->load->view('public/menu', $data);
 	}
@@ -31,12 +34,10 @@ class PublicUser extends CI_Controller
 		$this->output->set_content_type('application/json');
 		$slug = $this->input->get('slug');
 		if (!$slug) return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'msg' => 'slug requerido']));
-		$t = $this->db->get_where('tenants', ['slug' => $slug, 'activo' => 1], 1)->row();
+		$t = $this->tenant_model->get_by_slug_active($slug);
 		if (!$t) return $this->output->set_status_header(404)->set_output(json_encode(['ok' => false, 'msg' => 'tenant no encontrado']));
-		$this->db->order_by('orden');
-		$cats = $this->db->get_where('categorias', ['tenant_id' => $t->id, 'activo' => 1])->result();
-		$this->db->order_by('orden');
-		$prods = $this->db->get_where('productos', ['tenant_id' => $t->id, 'activo' => 1])->result();
+		$cats = $this->categoria_model->get_by_tenant($t->id, true);
+		$prods = $this->producto_model->get_by_tenant($t->id, true);
 		return $this->output->set_output(json_encode(['ok' => true, 'tenant' => $t, 'categorias' => $cats, 'productos' => $prods]));
 	}
 
@@ -56,7 +57,7 @@ class PublicUser extends CI_Controller
 				->set_output(json_encode(['ok' => false, 'msg' => 'Datos incompletos']));
 		}
 
-		$tenant = $this->db->get_where('tenants', ['slug' => $slug, 'activo' => 1], 1)->row();
+		$tenant = $this->tenant_model->get_by_slug_active($slug);
 		if (!$tenant) return $this->output->set_status_header(404)
 			->set_output(json_encode(['ok' => false, 'msg' => 'Tenant no encontrado']));
 
@@ -66,9 +67,8 @@ class PublicUser extends CI_Controller
 				->set_output(json_encode(['ok' => false, 'msg' => 'Items inválidos']));
 		}
 
-		$this->load->model('Pedido_model');
 		try {
-			$pedido_id = $this->Pedido_model->create($tenant->id, $nombre, $tel, $metodo, $items);
+			$pedido_id = $this->pedido_model->create($tenant->id, $nombre, $tel, $metodo, $items);
 		} catch (Exception $e) {
 			return $this->output->set_status_header(422)
 				->set_output(json_encode(['ok' => false, 'msg' => $e->getMessage()]));
@@ -85,7 +85,7 @@ class PublicUser extends CI_Controller
 		foreach ($items as $it) {
 			$pid = (int)$it['producto_id'];
 			$qty = (int)$it['cantidad'];
-			$p = $this->db->get_where('productos', ['id' => $pid], 1)->row();
+			$p = $this->producto_model->get($pid, $tenant->id);
 			if (!$p) continue;
 			$sub = ((float)$p->precio) * $qty;
 			$total += $sub;

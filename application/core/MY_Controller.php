@@ -50,26 +50,63 @@ class MY_Controller extends CI_Controller
 
 		// Datos comunes para todas las vistas
 		$this->data['page_title'] = 'iMenu';
-		$this->data['user_name'] = $this->session->userdata('user_name') ?? 'Usuario';
+		
+		// Si hay JWT válido, extraer datos del usuario
+		if (isset($this->jwt)) {
+			$this->data['user_name'] = $this->jwt->nombre ?? 'Usuario';
+			$this->data['user_role'] = $this->jwt->rol ?? null;
+			$this->data['tenant_id'] = $this->jwt->tenant_id ?? null;
+		} else {
+			$this->data['user_name'] = 'Usuario';
+			$this->data['user_role'] = null;
+			$this->data['tenant_id'] = null;
+		}
 	}
 
 	/**
-	 * Verifica que el usuario esté autenticado mediante sesión
+	 * Verifica que el usuario esté autenticado mediante JWT
 	 */
 	protected function _verify_auth()
 	{
-		// Verificar si existe sesión válida
-		if (!$this->session->userdata('logged_in')) {
+		// Verificar si existe JWT válido
+		if (!is_authenticated()) {
 			if ($this->input->is_ajax_request()) {
 				return $this->_api_error(401, 'Sesión no válida o expirada');
 			} else {
-				redirect('/tenantauth/login');
+				// Redirección inteligente según el tipo de panel
+				$class = $this->router->fetch_class();
+				if ($class === 'admin') {
+					// Si es el panel de admin SaaS, redirigir a su login
+					redirect('/adminpanel/login?expired=1');
+				} else {
+					// Para el resto (panel de tenant), redirigir al login de la app
+					redirect('/app/login?expired=1');
+				}
 				return false;
 			}
 		}
 
-		// Validar tenant_id
-		if (!$this->session->userdata('tenant_id')) {
+		// Decodificar el JWT y almacenar en $this->jwt para acceso en el controlador
+		$payload = jwt_decode_from_cookie();
+		if (!$payload) {
+			if ($this->input->is_ajax_request()) {
+				return $this->_api_error(401, 'Token inválido');
+			} else {
+				$class = $this->router->fetch_class();
+				if ($class === 'admin') {
+					redirect('/adminpanel/login?expired=1');
+				} else {
+					redirect('/app/login?expired=1');
+				}
+				return false;
+			}
+		}
+
+		// Almacenar el payload en $this->jwt para que esté disponible en los controladores
+		$this->jwt = (object)$payload;
+
+		// Validar tenant_id (excepto para rol admin que puede no tener tenant específico)
+		if (!isset($payload['tenant_id']) && (!isset($payload['rol']) || $payload['rol'] !== 'admin')) {
 			return $this->_api_error(403, 'Acceso no autorizado: tenant no encontrado');
 		}
 
@@ -153,7 +190,14 @@ class MY_Controller extends CI_Controller
 	 */
 	protected function _validate_tenant_access($resource_tenant_id)
 	{
-		$current_tenant = $this->session->userdata('tenant_id');
+		// Obtener el tenant_id actual del JWT
+		$current_tenant = isset($this->jwt->tenant_id) ? (int)$this->jwt->tenant_id : 0;
+		
+		// Los administradores SaaS pueden acceder a todos los recursos
+		if (isset($this->jwt->rol) && $this->jwt->rol === 'admin') {
+			return true;
+		}
+		
 		if ($resource_tenant_id != $current_tenant) {
 			$this->_api_error(403, 'Acceso denegado al recurso solicitado.');
 			return false;

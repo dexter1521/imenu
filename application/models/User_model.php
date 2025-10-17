@@ -25,7 +25,7 @@ class User_model extends CI_Model
 	{
 		return $this->db->update('users', $data, ['id' => $id, 'tenant_id' => $tenant_id]);
 	}
-	
+
 	public function delete_user($tenant_id, $id)
 	{
 		$this->db->delete('permisos', ['user_id' => $id, 'tenant_id' => $tenant_id]);

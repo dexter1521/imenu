@@ -128,9 +128,10 @@
                 <td>${r.plan_id ? '<span class="badge badge-success">ID:' + r.plan_id + '</span>' : '<span class="badge badge-secondary">-</span>'}</td>
                 <td>${r.activo == 1 ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-secondary">Inactivo</span>'}</td>
                 <td>${r.created_at || ''}</td>
-                <td>
+                <td class="text-right">
+					<button class="btn btn-sm btn-info btn-tenant-show" data-id="${r.id}" title="Ver Ficha"><i class="fas fa-eye"></i></button>
 					<button class="btn btn-sm btn-primary btn-tenant-edit" data-id="${r.id}">Editar</button>
-					<button class="btn btn-sm btn-info btn-tenant-qr" data-id="${r.id}">Ver QR</button>
+					<button class="btn btn-sm btn-secondary btn-tenant-qr" data-id="${r.id}">Ver QR</button>
 					<button class="btn btn-sm btn-warning btn-tenant-toggle" data-id="${r.id}">${r.activo == 1 ? 'Suspender' : 'Activar'}</button>
 					<button class="btn btn-sm btn-danger btn-tenant-delete" data-id="${r.id}">Eliminar</button>
                 </td>
@@ -139,6 +140,8 @@
 		});
 
 		// attach edit/delete/toggle/qr handlers
+		tbody.querySelectorAll('.btn-tenant-show').forEach(b => b.addEventListener('click', onTenantShow));
+		tbody.querySelectorAll('.btn-tenant-show').forEach(b => b.addEventListener('click', onTenantShow));
 		tbody.querySelectorAll('.btn-tenant-edit').forEach(b => b.addEventListener('click', onTenantEdit));
 		tbody.querySelectorAll('.btn-tenant-delete').forEach(b => b.addEventListener('click', onTenantDelete));
 		tbody.querySelectorAll('.btn-tenant-toggle').forEach(b => b.addEventListener('click', onTenantToggle));
@@ -180,6 +183,12 @@
 	}
 
 	// Tenant edit/delete handlers
+	function onTenantShow(e) {
+		const id = e.currentTarget.getAttribute('data-id');
+		// Navegar a la nueva vista de ficha de tenant
+		window.location.href = '/admin/tenant_show/' + encodeURIComponent(id);
+	}
+
 	function onTenantEdit(e) {
 		const id = e.currentTarget.getAttribute('data-id');
 		// fetch tenant details from current table rows or from server
@@ -193,6 +202,14 @@
 			form.querySelector('#tenant-nombre').value = t.nombre || '';
 			form.querySelector('#tenant-slug').value = t.slug || '';
 			form.querySelector('#tenant-whatsapp').value = t.whatsapp || '';
+			// Cargar y seleccionar el plan
+			const planSelect = form.querySelector('#tenant-plan-id');
+			if (planSelect) {
+				fetchJson(api.planes).then(planesRes => {
+					populatePlanSelect(planSelect, planesRes.data || []);
+					planSelect.value = t.plan_id || '';
+				});
+			}
 			form.querySelector('#tenant-activo').checked = t.activo == 1;
 			if (window.jQuery && $('#tenantModal').modal) $('#tenantModal').modal('show');
 		}).catch(err => showAlert(err.message, 'error'));
@@ -204,7 +221,7 @@
 		if (!ok) return;
 		fetchJson('/admin/tenant_delete/' + encodeURIComponent(id), { method: 'POST' }).then(res => {
 			if (res.ok) {
-				showAlert('Tenant eliminado', 'success');
+				showAlert(res.msg || 'Tenant eliminado', 'success');
 				fetchTenants();
 			}
 		}).catch(err => showAlert(err.message, 'error'));
@@ -216,7 +233,7 @@
 		if (!ok) return;
 		fetchJson('/admin/tenant_toggle/' + encodeURIComponent(id), { method: 'POST' }).then(res => {
 			if (res.ok) {
-				showAlert('Estado actualizado', 'success');
+				showAlert(res.msg || 'Estado actualizado', 'success');
 				fetchTenants();
 			}
 		}).catch(err => showAlert(err.message, 'error'));
@@ -300,6 +317,19 @@
 			.replace(/'/g, '&#39;');
 	}
 
+	function populatePlanSelect(selectElement, planes) {
+		if (!selectElement) return;
+		const currentVal = selectElement.value;
+		selectElement.innerHTML = '<option value="">-- Sin Plan --</option>';
+		planes.forEach(plan => {
+			const option = document.createElement('option');
+			option.value = plan.id;
+			option.textContent = `${plan.nombre} ($${plan.precio_mensual})`;
+			selectElement.appendChild(option);
+		});
+		selectElement.value = currentVal;
+	}
+
 	async function createTenant(payload) {
 		const res = await postForm(api.tenant_create, payload);
 		if (res.ok) {
@@ -341,6 +371,12 @@
 				// reset form
 				const form = document.getElementById('tenant-form');
 				if (form) form.reset();
+				// Cargar planes en el select
+				const planSelect = document.getElementById('tenant-plan-id');
+				if (planSelect) {
+					fetchJson(api.planes).then(res => populatePlanSelect(planSelect, res.data || []));
+				}
+
 				if (window.jQuery && $('#tenantModal').modal) {
 					$('#tenantModal').modal('show');
 				} else {
@@ -359,12 +395,12 @@
 				const payload = {};
 				fd.forEach((v, k) => { payload[k] = v; });
 				// normalize activo
-				payload.activo = payload.activo === 'on' || payload.activo === '1' ? 1 : 0;
-				const id = payload.id;
+				payload.activo = tenantForm.querySelector('#tenant-activo').checked ? 1 : 0;
+				const id = payload['tenant-id'];
 				if (id) {
 					postForm('/admin/tenant_update/' + encodeURIComponent(id), payload).then(res => {
 						if (res.ok) {
-							showAlert('Tenant actualizado', 'success');
+							showAlert(res.msg || 'Tenant actualizado', 'success');
 							fetchTenants();
 						}
 					}).catch(err => showAlert(err.message, 'error')).then(() => {
@@ -413,7 +449,7 @@
 				const payload = {};
 				fd.forEach((v, k) => { payload[k] = v; });
 				payload.ads = payload.ads === 'on' ? 1 : 0;
-				const id = payload.id;
+				const id = payload['plan-id'];
 				if (id) {
 					postForm('/admin/plan_update/' + encodeURIComponent(id), payload).then(res => {
 						if (res.ok) {
