@@ -36,8 +36,8 @@
 	<div class="modal fade" id="planModal" tabindex="-1" role="dialog" aria-hidden="true">
 		<div class="modal-dialog" role="document">
 			<div class="modal-content">
-						<form id="plan-form">
-							<input type="hidden" name="id" id="plan-id">
+				<form id="plan-form">
+					<input type="hidden" name="id" id="plan-id">
 					<div class="modal-header">
 						<h5 class="modal-title">Crear Plan</h5>
 						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -75,7 +75,7 @@
 		</div>
 	</div>
 
-	<script src="/assets/js/admin.js"></script>
+	<script src="<?php echo base_url('assets/js/admin.js?v=' . time()); ?>"></script>
 	<!-- Plan Pro -->
 	<div class="col-lg-4 mb-4">
 		<div class="card border-left-success shadow h-100">

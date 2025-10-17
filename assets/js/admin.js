@@ -2,12 +2,27 @@
 (function () {
 	'use strict';
 
+	// Obtener base URL desde variable global (definida en header.php)
+	const BASE_URL = window.IMENU_BASE_URL || '';
+
+	// Función auxiliar para construir URLs
+	function url(path) {
+		return BASE_URL + path;
+	}
+
 	const api = {
-		tenants: '/admin/tenants',
-		tenant_create: '/admin/tenant_create',
-		planes: '/admin/planes',
-		plan_create: '/admin/plan_create',
-		pagos: '/admin/pagos'
+		tenants: url('admin/tenants'),
+		tenant_create: url('admin/tenant_create'),
+		tenant_update: (id) => url('admin/tenant_update/' + encodeURIComponent(id)),
+		tenant_delete: (id) => url('admin/tenant_delete/' + encodeURIComponent(id)),
+		tenant_toggle: (id) => url('admin/tenant_toggle/' + encodeURIComponent(id)),
+		tenant_show: (id) => url('admin/tenant_show/' + encodeURIComponent(id)),
+		planes: url('admin/planes'),
+		plan_create: url('admin/plan_create'),
+		plan_update: (id) => url('admin/plan_update/' + encodeURIComponent(id)),
+		plan_delete: (id) => url('admin/plan_delete/' + encodeURIComponent(id)),
+		pagos: url('admin/pagos'),
+		auth_login: url('adminpanel/login')
 	};
 
 	function getAuthHeaders() {
@@ -22,15 +37,56 @@
 		try { localStorage.removeItem('imenu_token'); localStorage.removeItem('imenu_role'); localStorage.removeItem('imenu_tenant'); } catch (e) { }
 		document.cookie = 'imenu_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 		// redirigir al login con indicador de expiración
-		const loginUrl = (window.IMENU && window.IMENU.routes && window.IMENU.routes.login) ? window.IMENU.routes.login : '/admin/auth';
+		const loginUrl = (window.IMENU && window.IMENU.routes && window.IMENU.routes.login) ? window.IMENU.routes.login : api.auth_login;
 		window.location.href = loginUrl + (loginUrl.indexOf('?') === -1 ? '?expired=1' : '&expired=1');
+	}
+
+	// Función para actualizar el token CSRF desde la cookie
+	function updateCsrfToken() {
+		if (!window.IMENU_CSRF_TOKEN_NAME) return;
+		
+		const cookieName = window.IMENU && window.IMENU.csrf && window.IMENU.csrf.cookie_name 
+			? window.IMENU.csrf.cookie_name 
+			: 'csrf_cookie_name';
+		
+		try {
+			const match = document.cookie.match(new RegExp('(^|; )' + cookieName.replace(/([.*+?^${}()|[\]\\])/g, '\\$1') + '=([^;]*)'));
+			if (match) {
+				const newToken = decodeURIComponent(match[2]);
+				window.IMENU_CSRF_TOKEN_VALUE = newToken;
+				if (window.IMENU && window.IMENU.csrf) {
+					window.IMENU.csrf.hash = newToken;
+				}
+			}
+		} catch (e) {
+			console.warn('Error al actualizar token CSRF:', e);
+		}
 	}
 
 	async function fetchJson(url, opts = {}) {
 		opts.headers = Object.assign({}, opts.headers || {}, getAuthHeaders());
+		
+		// Si es POST, agregar token CSRF al body
+		if (opts.method === 'POST' && window.IMENU_CSRF_TOKEN_NAME && window.IMENU_CSRF_TOKEN_VALUE) {
+			if (!opts.body) {
+				const params = new URLSearchParams();
+				params.append(window.IMENU_CSRF_TOKEN_NAME, window.IMENU_CSRF_TOKEN_VALUE);
+				opts.body = params.toString();
+				opts.headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
+			} else if (typeof opts.body === 'string') {
+				const params = new URLSearchParams(opts.body);
+				params.append(window.IMENU_CSRF_TOKEN_NAME, window.IMENU_CSRF_TOKEN_VALUE);
+				opts.body = params.toString();
+			}
+		}
+		
 		// Enviar cookies (cookie HttpOnly) para autenticación
 		if (!opts.credentials) opts.credentials = 'same-origin';
 		const res = await fetch(url, opts);
+		
+		// Actualizar token CSRF después de cada petición
+		updateCsrfToken();
+		
 		if (!res.ok) {
 			if (res.status === 401) {
 				// token expirado o no autorizado: cerrar sesión automáticamente
@@ -49,6 +105,12 @@
 	// Util: enviar formulario como application/x-www-form-urlencoded
 	async function postForm(url, payload) {
 		const params = new URLSearchParams();
+		
+		// Agregar token CSRF si está disponible
+		if (window.IMENU_CSRF_TOKEN_NAME && window.IMENU_CSRF_TOKEN_VALUE) {
+			params.append(window.IMENU_CSRF_TOKEN_NAME, window.IMENU_CSRF_TOKEN_VALUE);
+		}
+		
 		for (const k in payload) {
 			if (payload[k] === null || payload[k] === undefined) continue;
 			params.append(k, payload[k]);
@@ -57,6 +119,10 @@
 		const fetchOpts = { method: 'POST', headers: headers, body: params.toString() };
 		if (!fetchOpts.credentials) fetchOpts.credentials = 'same-origin';
 		const res = await fetch(url, fetchOpts);
+		
+		// Actualizar token CSRF después de cada petición
+		updateCsrfToken();
+		
 		if (!res.ok) {
 			if (res.status === 401) {
 				await res.text();
@@ -71,16 +137,52 @@
 		return res.json();
 	}
 
+	/**
+	 * Mostrar alerta con SweetAlert2 mejorado
+	 * @param {string} msg - Mensaje a mostrar
+	 * @param {string} type - Tipo de alerta: 'success', 'error', 'warning', 'info'
+	 */
 	function showAlert(msg, type = 'info') {
 		if (window.Swal) {
+			const icons = {
+				success: 'success',
+				error: 'error',
+				warning: 'warning',
+				info: 'info'
+			};
+
+			const titles = {
+				success: '¡Éxito!',
+				error: 'Error',
+				warning: 'Atención',
+				info: 'Información'
+			};
+
+			const colors = {
+				success: '#28a745',
+				error: '#dc3545',
+				warning: '#ffc107',
+				info: '#17a2b8'
+			};
+
 			Swal.fire({
-				title: type === 'error' ? 'Error' : (type === 'warning' ? 'Atención' : 'Información'),
-				text: msg,
-				icon: type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'info'),
-				confirmButtonText: 'OK'
+				title: titles[type] || titles.info,
+				html: msg,
+				icon: icons[type] || icons.info,
+				confirmButtonText: 'OK',
+				confirmButtonColor: colors[type] || colors.info,
+				timer: type === 'success' ? 3000 : undefined,
+				timerProgressBar: type === 'success',
+				showClass: {
+					popup: 'animate__animated animate__fadeInDown'
+				},
+				hideClass: {
+					popup: 'animate__animated animate__fadeOutUp'
+				}
 			});
 			return;
 		}
+		// Fallback para cuando SweetAlert2 no está disponible
 		const el = document.getElementById('admin-alert');
 		if (!el) return;
 		el.innerText = msg;
@@ -90,19 +192,29 @@
 	}
 
 	/**
-	 * Confirmación amigable - usa SweetAlert2 si está disponible, si no usa confirm()
-	 * @param {string} message
+	 * Confirmación amigable con SweetAlert2 mejorado
+	 * @param {string} message - Mensaje de confirmación
+	 * @param {string} title - Título del diálogo (opcional)
 	 * @returns {Promise<boolean>} true si el usuario confirma
 	 */
-	function confirmAction(message) {
+	function confirmAction(message, title = '¿Estás seguro?') {
 		if (window.Swal) {
 			return Swal.fire({
-				title: 'Confirmar',
-				text: message,
+				title: title,
+				html: message,
 				icon: 'warning',
 				showCancelButton: true,
-				confirmButtonText: 'Sí',
-				cancelButtonText: 'Cancelar'
+				confirmButtonText: '<i class="fas fa-check"></i> Sí, confirmar',
+				cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+				confirmButtonColor: '#3085d6',
+				cancelButtonColor: '#d33',
+				reverseButtons: true,
+				showClass: {
+					popup: 'animate__animated animate__zoomIn'
+				},
+				hideClass: {
+					popup: 'animate__animated animate__zoomOut'
+				}
 			}).then(res => !!res.isConfirmed);
 		}
 		return Promise.resolve(confirm(message));
@@ -186,13 +298,13 @@
 	function onTenantShow(e) {
 		const id = e.currentTarget.getAttribute('data-id');
 		// Navegar a la nueva vista de ficha de tenant
-		window.location.href = '/admin/tenant_show/' + encodeURIComponent(id);
+		window.location.href = api.tenant_show(id);
 	}
 
 	function onTenantEdit(e) {
 		const id = e.currentTarget.getAttribute('data-id');
 		// fetch tenant details from current table rows or from server
-		fetchJson('/admin/tenants').then(d => {
+		fetchJson(api.tenants).then(d => {
 			const t = (d.data || []).find(x => String(x.id) === String(id));
 			if (!t) return showAlert('Tenant no encontrado', 'error');
 			// fill form
@@ -217,11 +329,14 @@
 
 	async function onTenantDelete(e) {
 		const id = e.currentTarget.getAttribute('data-id');
-		const ok = await confirmAction('¿Eliminar tenant? Esta acción es irreversible.');
+		const ok = await confirmAction(
+			'Esta acción eliminará el tenant y <strong>todos sus datos asociados</strong> (usuarios, productos, categorías, pedidos, etc.).<br><br>Esta acción <strong>no se puede deshacer</strong>.',
+			'¿Eliminar tenant permanentemente?'
+		);
 		if (!ok) return;
-		fetchJson('/admin/tenant_delete/' + encodeURIComponent(id), { method: 'POST' }).then(res => {
+		fetchJson(api.tenant_delete(id), { method: 'POST' }).then(res => {
 			if (res.ok) {
-				showAlert(res.msg || 'Tenant eliminado', 'success');
+				showAlert(res.msg || '✓ Tenant eliminado correctamente', 'success');
 				fetchTenants();
 			}
 		}).catch(err => showAlert(err.message, 'error'));
@@ -229,11 +344,14 @@
 
 	async function onTenantToggle(e) {
 		const id = e.currentTarget.getAttribute('data-id');
-		const ok = await confirmAction('¿Cambiar estado del tenant?');
+		const ok = await confirmAction(
+			'Esto cambiará el estado activo/inactivo del tenant.<br>Un tenant inactivo no podrá acceder al sistema.',
+			'¿Cambiar estado del tenant?'
+		);
 		if (!ok) return;
-		fetchJson('/admin/tenant_toggle/' + encodeURIComponent(id), { method: 'POST' }).then(res => {
+		fetchJson(api.tenant_toggle(id), { method: 'POST' }).then(res => {
 			if (res.ok) {
-				showAlert(res.msg || 'Estado actualizado', 'success');
+				showAlert(res.msg || '✓ Estado actualizado correctamente', 'success');
 				fetchTenants();
 			}
 		}).catch(err => showAlert(err.message, 'error'));
@@ -249,7 +367,7 @@
 	// Plan edit/delete handlers
 	function onPlanEdit(e) {
 		const id = e.currentTarget.getAttribute('data-id');
-		fetchJson('/admin/planes').then(d => {
+		fetchJson(api.planes).then(d => {
 			const p = (d.data || []).find(x => String(x.id) === String(id));
 			if (!p) return showAlert('Plan no encontrado', 'error');
 			const form = document.getElementById('plan-form');
@@ -266,11 +384,14 @@
 
 	async function onPlanDelete(e) {
 		const id = e.currentTarget.getAttribute('data-id');
-		const ok = await confirmAction('¿Eliminar plan?');
+		const ok = await confirmAction(
+			'Al eliminar este plan, los tenants asociados quedarán sin plan activo.<br><br>¿Deseas continuar?',
+			'¿Eliminar plan?'
+		);
 		if (!ok) return;
-		fetchJson('/admin/plan_delete/' + encodeURIComponent(id), { method: 'POST' }).then(res => {
+		fetchJson(api.plan_delete(id), { method: 'POST' }).then(res => {
 			if (res.ok) {
-				showAlert('Plan eliminado', 'success');
+				showAlert('✓ Plan eliminado correctamente', 'success');
 				fetchPlanes();
 			}
 		}).catch(err => showAlert(err.message, 'error'));
@@ -333,7 +454,7 @@
 	async function createTenant(payload) {
 		const res = await postForm(api.tenant_create, payload);
 		if (res.ok) {
-			showAlert('Tenant creado correctamente', 'success');
+			showAlert('✓ Tenant creado correctamente<br><small>Ya puedes configurar sus datos y asignarle un plan</small>', 'success');
 			fetchTenants();
 		}
 		return res;
@@ -342,7 +463,7 @@
 	async function createPlan(payload) {
 		const res = await postForm(api.plan_create, payload);
 		if (res.ok) {
-			showAlert('Plan creado correctamente', 'success');
+			showAlert('✓ Plan creado correctamente<br><small>Ahora puedes asignarlo a los tenants</small>', 'success');
 			fetchPlanes();
 		}
 		return res;
@@ -398,9 +519,9 @@
 				payload.activo = tenantForm.querySelector('#tenant-activo').checked ? 1 : 0;
 				const id = payload['tenant-id'];
 				if (id) {
-					postForm('/admin/tenant_update/' + encodeURIComponent(id), payload).then(res => {
+					postForm(api.tenant_update(id), payload).then(res => {
 						if (res.ok) {
-							showAlert(res.msg || 'Tenant actualizado', 'success');
+							showAlert(res.msg || '✓ Tenant actualizado correctamente', 'success');
 							fetchTenants();
 						}
 					}).catch(err => showAlert(err.message, 'error')).then(() => {
@@ -449,11 +570,11 @@
 				const payload = {};
 				fd.forEach((v, k) => { payload[k] = v; });
 				payload.ads = payload.ads === 'on' ? 1 : 0;
-				const id = payload['plan-id'];
+				const id = payload['id'];
 				if (id) {
-					postForm('/admin/plan_update/' + encodeURIComponent(id), payload).then(res => {
+					postForm(api.plan_update(id), payload).then(res => {
 						if (res.ok) {
-							showAlert('Plan actualizado', 'success');
+							showAlert('✓ Plan actualizado correctamente', 'success');
 							fetchPlanes();
 						}
 					}).catch(err => showAlert(err.message, 'error')).then(() => {

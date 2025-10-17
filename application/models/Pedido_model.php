@@ -270,4 +270,31 @@ class Pedido_model extends CI_Model
 			'total_ventas' => array_sum(array_column($stats_por_estado, 'total_ventas'))
 		];
 	}
+
+	/**
+	 * Métodos chainables para consultas personalizadas
+	 */
+	public function where($field, $value)
+	{
+		$this->db->where($field, $value);
+		return $this;
+	}
+
+	public function order_by($field, $direction = 'ASC')
+	{
+		$this->db->order_by($field, $direction);
+		return $this;
+	}
+
+	public function limit($limit, $offset = 0)
+	{
+		$this->db->limit($limit, $offset);
+		return $this;
+	}
+
+	public function get_all()
+	{
+		return $this->db->get('pedidos')->result();
+	}
 }
+

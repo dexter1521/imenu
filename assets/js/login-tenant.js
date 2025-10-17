@@ -61,7 +61,7 @@
 				method: 'POST',
 				credentials: 'same-origin',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: params
+				body: params.toString()
 			});
 
 			const text = await resp.text();

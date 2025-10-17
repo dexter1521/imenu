@@ -33,7 +33,6 @@ class Admin extends MY_Controller
 		$this->load->model('Suscripcion_model', 'suscripcion_model');
 		$this->load->model('Pago_model', 'pago_model');
 		$this->load->model('Pedido_model', 'pedido_model');
-		$this->load->model('Ajustes_model', 'ajustes_model');
 	}
 
 	// ===== Vistas del Panel Admin =====
@@ -101,8 +100,8 @@ class Admin extends MY_Controller
 			$this->_api_error(500, 'Error creando tenant');
 			return;
 		}
-		// Crear ajustes por defecto usando el modelo
-		$this->ajustes_model->create_default($tid);
+		// Crear registro de ajustes por defecto para el nuevo tenant
+		$this->db->insert('ajustes', ['tenant_id' => $tid]);
 		echo json_encode(['ok' => true, 'id' => $tid]);
 	}
 
@@ -213,7 +212,7 @@ class Admin extends MY_Controller
 		}
 
 		$data['plan'] = $this->plan_model->get($data['tenant']->plan_id);
-		$data['suscripcion'] = $this->suscripcion_model->where('tenant_id', $id)->order_by('fin', 'DESC')->get();
+		$data['suscripcion'] = $this->suscripcion_model->where('tenant_id', $id)->order_by('fin', 'DESC')->get_one();
 		$data['ultimos_pagos'] = $this->pago_model->where('tenant_id', $id)->limit(5)->order_by('fecha', 'DESC')->get_all();
 		$data['ultimos_pedidos'] = $this->pedido_model->where('tenant_id', $id)->limit(5)->order_by('fecha_creacion', 'DESC')->get_all();
 		$data['qr_url'] = base_url('uploads/tenants/' . $id . '/qr.png'); // Asumiendo que el QR se genera en esa ruta

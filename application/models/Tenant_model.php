@@ -76,8 +76,15 @@ class Tenant_model extends CI_Model
 		// Iniciar transacción
 		$this->db->trans_start();
 
+		// Obtener IDs de pedidos para eliminar items
+		$pedidos = $this->db->select('id')->where('tenant_id', $id)->get('pedidos')->result();
+		$pedido_ids = array_column($pedidos, 'id');
+
 		// Eliminar en orden de dependencias
-		$this->db->delete('pedido_items', ['pedido_id IN (SELECT id FROM pedidos WHERE tenant_id = ?)' => $id]);
+		if (!empty($pedido_ids)) {
+			$this->db->where_in('pedido_id', $pedido_ids)->delete('pedido_items');
+		}
+
 		$this->db->delete('pedidos', ['tenant_id' => $id]);
 		$this->db->delete('productos', ['tenant_id' => $id]);
 		$this->db->delete('categorias', ['tenant_id' => $id]);
@@ -90,6 +97,11 @@ class Tenant_model extends CI_Model
 
 		// Finalizar transacción
 		$this->db->trans_complete();
+
+		// Log de errores si falla
+		if ($this->db->trans_status() === FALSE) {
+			log_message('error', 'Error al eliminar tenant (ID: ' . $id . '). Error DB: ' . $this->db->error()['message']);
+		}
 
 		return $this->db->trans_status();
 	}

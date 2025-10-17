@@ -25,45 +25,45 @@
 		</div>
 	</div>
 
-		<!-- Modal: Exportar Pagos -->
-		<div class="modal fade" id="exportPagosModal" tabindex="-1" role="dialog" aria-hidden="true">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form id="export-pagos-form">
-						<div class="modal-header">
-							<h5 class="modal-title">Exportar Pagos</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
+	<!-- Modal: Exportar Pagos -->
+	<div class="modal fade" id="exportPagosModal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<form id="export-pagos-form">
+					<div class="modal-header">
+						<h5 class="modal-title">Exportar Pagos</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label for="export-formato">Formato</label>
+							<select id="export-formato" class="form-control" name="formato">
+								<option value="csv">CSV</option>
+								<option value="json">JSON</option>
+								<option value="excel">Excel</option>
+							</select>
 						</div>
-						<div class="modal-body">
-							<div class="form-group">
-								<label for="export-formato">Formato</label>
-								<select id="export-formato" class="form-control" name="formato">
-									<option value="csv">CSV</option>
-									<option value="json">JSON</option>
-									<option value="excel">Excel</option>
-								</select>
-							</div>
-							<div class="form-group">
-								<label for="export-fecha-inicio">Fecha inicio</label>
-								<input type="date" id="export-fecha-inicio" class="form-control" name="fecha_inicio">
-							</div>
-							<div class="form-group">
-								<label for="export-fecha-fin">Fecha fin</label>
-								<input type="date" id="export-fecha-fin" class="form-control" name="fecha_fin">
-							</div>
+						<div class="form-group">
+							<label for="export-fecha-inicio">Fecha inicio</label>
+							<input type="date" id="export-fecha-inicio" class="form-control" name="fecha_inicio">
 						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-							<button type="submit" class="btn btn-primary">Exportar</button>
+						<div class="form-group">
+							<label for="export-fecha-fin">Fecha fin</label>
+							<input type="date" id="export-fecha-fin" class="form-control" name="fecha_fin">
 						</div>
-					</form>
-				</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+						<button type="submit" class="btn btn-primary">Exportar</button>
+					</div>
+				</form>
+			</div>
 			</div>
 		</div>
 
-		<script src="/assets/js/admin.js"></script>
+		<script src="<?php echo base_url('assets/js/admin.js?v=' . time()); ?>"></script>
 	<div class="col-xl-3 col-md-6 mb-4">
 		<div class="card border-left-primary shadow h-100 py-2">
 			<div class="card-body">

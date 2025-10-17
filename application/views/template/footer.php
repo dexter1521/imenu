@@ -54,7 +54,11 @@
     <!-- Custom scripts for all pages-->
     <script src="<?php echo base_url('assets/js/sb-admin-2.min.js'); ?>"></script>
 
+    <!-- SweetAlert2 para alertas bonitas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <?php if(isset($extra_js)) echo $extra_js; ?>
 
 </body>
 </html>
+

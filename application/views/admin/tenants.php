@@ -78,7 +78,7 @@
 	</div>
 </div>
 
-<script src="/assets/js/admin.js"></script>
+<script src="<?php echo base_url('assets/js/admin.js?v=' . time()); ?>"></script>
 <!-- Stats Cards -->
 <div class="row">
 	<div class="col-xl-3 col-md-6 mb-4">

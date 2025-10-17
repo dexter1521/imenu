@@ -28,6 +28,22 @@ class Suscripcion_model extends CI_Model
 	}
 
 	/**
+	 * Obtener primer resultado de la consulta chainable
+	 */
+	public function get_one()
+	{
+		return $this->db->get('suscripciones')->row();
+	}
+
+	/**
+	 * Obtener todos los resultados de la consulta chainable
+	 */
+	public function get_results()
+	{
+		return $this->db->get('suscripciones')->result();
+	}
+
+	/**
 	 * Filtrar por campo
 	 */
 	public function where($field, $value)

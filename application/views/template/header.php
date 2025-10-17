@@ -16,7 +16,25 @@
     <!-- Custom styles for this template-->
     <link href="<?php echo base_url('assets/css/sb-admin-2.min.css'); ?>" rel="stylesheet">
     
+    <!-- Animate.css para animaciones de SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
     <?php if(isset($extra_css)) echo $extra_css; ?>
+    
+    <!-- Base URL y CSRF Token para JavaScript -->
+    <script>
+        window.IMENU_BASE_URL = '<?php echo base_url(); ?>';
+        window.IMENU_CSRF_TOKEN_NAME = '<?php echo $this->security->get_csrf_token_name(); ?>';
+        window.IMENU_CSRF_TOKEN_VALUE = '<?php echo $this->security->get_csrf_hash(); ?>';
+        
+        // Compatibilidad con login-admin.js y login-tenant.js
+        window.IMENU = window.IMENU || {};
+        window.IMENU.csrf = {
+            name: '<?php echo $this->security->get_csrf_token_name(); ?>',
+            hash: '<?php echo $this->security->get_csrf_hash(); ?>',
+            cookie_name: '<?php echo $this->config->item("csrf_cookie_name"); ?>'
+        };
+    </script>
 </head>
 
 <body id="page-top">
