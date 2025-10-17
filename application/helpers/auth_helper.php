@@ -11,12 +11,33 @@ if (!function_exists('jwt_secret')) {
 if (!function_exists('jwt_from_request')) {
 	function jwt_from_request()
 	{
-		$hdr = isset($_SERVER['HTTP_AUTHORIZATION']) ? $_SERVER['HTTP_AUTHORIZATION'] : (isset($_SERVER['Authorization']) ? $_SERVER['Authorization'] : '');
+		// Buscar Authorization en varias variables servidoras y cabeceras
+		$possible = [
+			'HTTP_AUTHORIZATION',
+			'Authorization',
+			'REDIRECT_HTTP_AUTHORIZATION',
+			'HTTP_X_AUTHORIZATION',
+			'HTTP_X_FORWARDED_AUTHORIZATION'
+		];
+		$hdr = '';
+		foreach ($possible as $k) {
+			if (!empty($_SERVER[$k])) { $hdr = $_SERVER[$k]; break; }
+		}
+		// apache_request_headers (case-insensitive)
 		if (!$hdr && function_exists('apache_request_headers')) {
 			$hs = apache_request_headers();
-			if (isset($hs['Authorization'])) $hdr = $hs['Authorization'];
+			foreach ($hs as $hk => $hv) {
+				if (strtolower($hk) === 'authorization') { $hdr = $hv; break; }
+			}
 		}
-		if (stripos($hdr, 'Bearer ') === 0) return trim(substr($hdr, 7));
+		if ($hdr && preg_match('/Bearer\s+(\S+)/i', $hdr, $m)) {
+			return trim($m[1]);
+		}
+
+		// Fallback: permitir token via cookie (ej. frontend lo almacena en localStorage y setea cookie)
+		if (isset($_COOKIE['imenu_token']) && $_COOKIE['imenu_token']) {
+			return trim($_COOKIE['imenu_token']);
+		}
 		return null;
 	}
 }
@@ -36,7 +57,15 @@ if (!function_exists('jwt_issue')) {
 		];
 		$CI = &get_instance();
 		$CI->load->library('JWT');
-		return JWT::encode($payload, jwt_secret());
+		// usar la instancia wrapper creada por la librería
+		if (isset($CI->jwt) && method_exists($CI->jwt, 'encode')) {
+			return $CI->jwt->encode($payload);
+		}
+		// fallback: intentar usar la clase Firebase directamente
+		if (class_exists('\\Firebase\\JWT\\JWT')) {
+			return \Firebase\JWT\JWT::encode($payload, jwt_secret(), 'HS256');
+		}
+		throw new Exception('No se pudo emitir el JWT: librería no encontrada');
 	}
 }
 
@@ -52,7 +81,11 @@ if (!function_exists('jwt_require')) {
 			exit;
 		}
 		try {
-			$payload = JWT::decode($token, jwt_secret());
+			if (isset($CI->jwt) && method_exists($CI->jwt, 'decode')) {
+				$payload = $CI->jwt->decode($token);
+			} else {
+				$payload = \Firebase\JWT\JWT::decode($token, jwt_secret(), ['HS256']);
+			}
 		} catch (Exception $e) {
 			http_response_code(401);
 			echo json_encode(['ok' => false, 'msg' => $e->getMessage()]);

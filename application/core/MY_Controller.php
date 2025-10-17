@@ -47,9 +47,13 @@ class MY_Controller extends CI_Controller
 	{
 		parent::__construct();
 
-		// Validar autenticación para todos los controladores que extienden MY_Controller
-		if (!$this->_verify_auth()) {
-			exit;
+		// Excluir métodos específicos de la validación de autenticación
+		$excluded_methods = ['login'];
+		$current_method = $this->router->fetch_method();
+		if (!in_array($current_method, $excluded_methods)) {
+			if (!$this->_verify_auth()) {
+				exit;
+			}
 		}
 
 		// Datos comunes para todas las vistas
@@ -132,6 +136,12 @@ class MY_Controller extends CI_Controller
 	 */
 	protected function _verify_auth()
 	{
+		// Intentar poblar la información del JWT desde header/cookie
+		if (function_exists('jwt_require')) {
+			// jwt_require() enviará respuesta y terminará la ejecución si el token falta o es inválido
+			jwt_require();
+		}
+
 		$tenant_id = current_tenant_id();
 
 		if (!$tenant_id) {
@@ -173,8 +183,12 @@ class MY_Controller extends CI_Controller
 	protected function validate_view_access()
 	{
 		$current_method = $this->router->fetch_method();
-		if (!empty($this->allowed_views) && !in_array($current_method, $this->allowed_views)) {
-			$this->_api_error(403, 'Acceso denegado a la vista: ' . $current_method);
+		// Solo aplicar la validación para métodos que representan vistas (terminan en _view).
+		// Esto evita bloquear endpoints API (como tenants, planes, pagos) que deben estar accesibles vía AJAX/API.
+		if (!empty($this->allowed_views) && substr($current_method, -5) === '_view') {
+			if (!in_array($current_method, $this->allowed_views)) {
+				$this->_api_error(403, 'Acceso denegado a la vista: ' . $current_method);
+			}
 		}
 	}
 }

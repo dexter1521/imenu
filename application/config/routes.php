@@ -54,7 +54,7 @@ $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
 $route['r/(:any)'] = 'public/menu/$1';
-$route['api/auth/login'] = 'auth/login';
+$route['api/auth/login'] = 'TenantAuth/login';
 
 $route['api/app/dashboard'] = 'app/dashboard';
 $route['api/app/categorias']['get'] = 'app/categorias';
@@ -93,3 +93,12 @@ $route['api/public/pedido']['post'] = 'public/crear_pedido';
 // Panel (JWT)
 $route['api/app/pedidos']['get']        = 'app/pedidos';
 $route['api/app/pedido/(:num)']['get']  = 'app/pedido/$1';
+
+
+// Ruta para el login de administradores saas (global)
+$route['admin/auth'] = 'AdminAuth/login';
+// Ruta para el login de tenants (global)
+$route['app/auth'] = 'TenantAuth/login';
+
+// Compatibilidad para logout antiguo
+$route['api/auth/logout'] = 'TenantAuth/logout';

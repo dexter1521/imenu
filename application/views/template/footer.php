@@ -38,7 +38,7 @@
                 <div class="modal-body">Selecciona "Cerrar Sesión" si estás listo para terminar tu sesión actual.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancelar</button>
-                    <a class="btn btn-primary" href="<?php echo site_url('api/auth/logout'); ?>">Cerrar Sesión</a>
+                    <a class="btn btn-primary" href="<?php echo site_url('app/auth/logout'); ?>">Cerrar Sesión</a>
                 </div>
             </div>
         </div>
