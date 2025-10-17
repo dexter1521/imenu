@@ -2,6 +2,16 @@
 
 /**
  * Class MY_Controller
+ * Controlador base centralizado para iMenu
+ *
+ * - Valida sesión automáticamente.
+ * - Centraliza el renderizado de vistas.
+ * - Proporciona métodos para validar tenant y permisos.
+ * - Funciona con autenticación basada en sesiones (no JWT).
+ */
+
+/**
+ * Class MY_Controller
  *
  * @property CI_Session $session
  * @property CI_Loader $load
@@ -10,45 +20,27 @@
  * @property CI_Output $output
  */
 
-/**
- * Controlador base personalizado para iMenu
- */
 class MY_Controller extends CI_Controller
 {
-	/**
-	 * Permisos del usuario autenticado
-	 * @var array
-	 */
-
-
-
-	/**
-	 * Instancia principal de CodeIgniter
-	 * @var CI_Controller
-	 */
-	protected $CI;
-
-	/**
-	 * Permisos del usuario autenticado
-	 * @var array
-	 */
-	protected $permission = [];
-
 	/**
 	 * Datos globales para las vistas
 	 * @var array
 	 */
 	protected $data = [];
 
-	// Centralizar validación de vistas permitidas
+	/**
+	 * Lista de vistas permitidas por controlador (seguridad granular)
+	 * @var array
+	 */
 	protected $allowed_views = [];
 
 	public function __construct()
 	{
 		parent::__construct();
 
-		// Excluir métodos específicos de la validación de autenticación
-		$excluded_methods = ['login'];
+		// Métodos que no requieren autenticación (por ejemplo login)
+		$excluded_methods = ['login', 'do_login', 'forgot_password'];
+
 		$current_method = $this->router->fetch_method();
 		if (!in_array($current_method, $excluded_methods)) {
 			if (!$this->_verify_auth()) {
@@ -58,13 +50,34 @@ class MY_Controller extends CI_Controller
 
 		// Datos comunes para todas las vistas
 		$this->data['page_title'] = 'iMenu';
-		$this->data['user_name'] = 'Usuario'; // Se puede cargar desde sesión
+		$this->data['user_name'] = $this->session->userdata('user_name') ?? 'Usuario';
 	}
 
 	/**
-	 * Renderiza una vista con la plantilla base
-	 * @param string $page Vista a renderizar (sin .php)
-	 * @param array $data Datos para la vista
+	 * Verifica que el usuario esté autenticado mediante sesión
+	 */
+	protected function _verify_auth()
+	{
+		// Verificar si existe sesión válida
+		if (!$this->session->userdata('logged_in')) {
+			if ($this->input->is_ajax_request()) {
+				return $this->_api_error(401, 'Sesión no válida o expirada');
+			} else {
+				redirect('/tenantauth/login');
+				return false;
+			}
+		}
+
+		// Validar tenant_id
+		if (!$this->session->userdata('tenant_id')) {
+			return $this->_api_error(403, 'Acceso no autorizado: tenant no encontrado');
+		}
+
+		return true;
+	}
+
+	/**
+	 * Renderiza una vista dentro del template del panel tenant
 	 */
 	public function render_template($page = null, $data = [])
 	{
@@ -78,7 +91,6 @@ class MY_Controller extends CI_Controller
 		}
 
 		$data = array_merge($this->data, $data);
-
 		$this->load->view('template/header', $data);
 		$this->load->view('template/sidebar', $data);
 		$this->load->view('template/topbar', $data);
@@ -87,9 +99,7 @@ class MY_Controller extends CI_Controller
 	}
 
 	/**
-	 * Renderiza una vista con la plantilla de admin
-	 * @param string $page Vista a renderizar (sin .php)
-	 * @param array $data Datos para la vista
+	 * Renderiza una vista dentro del template del panel de administración SaaS
 	 */
 	public function render_admin_template($page = null, $data = [])
 	{
@@ -103,7 +113,6 @@ class MY_Controller extends CI_Controller
 		}
 
 		$data = array_merge($this->data, $data);
-
 		$this->load->view('template/header', $data);
 		$this->load->view('template/sidebar_admin', $data);
 		$this->load->view('template/topbar', $data);
@@ -112,9 +121,7 @@ class MY_Controller extends CI_Controller
 	}
 
 	/**
-	 * Renderiza una vista simple sin plantilla
-	 * @param string $page Vista a renderizar (sin .php)
-	 * @param array $data Datos para la vista
+	 * Renderiza una vista simple sin layout (útil para páginas públicas o AJAX)
 	 */
 	public function render_view($page = null, $data = [])
 	{
@@ -132,28 +139,7 @@ class MY_Controller extends CI_Controller
 	}
 
 	/**
-	 * Verificar autenticación del usuario
-	 */
-	protected function _verify_auth()
-	{
-		// Intentar poblar la información del JWT desde header/cookie
-		if (function_exists('jwt_require')) {
-			// jwt_require() enviará respuesta y terminará la ejecución si el token falta o es inválido
-			jwt_require();
-		}
-
-		$tenant_id = current_tenant_id();
-
-		if (!$tenant_id) {
-			$this->_api_error(401, 'Acceso no autorizado');
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Manejar errores de API
+	 * Devuelve error en formato API JSON
 	 */
 	protected function _api_error($code, $message)
 	{
@@ -163,28 +149,27 @@ class MY_Controller extends CI_Controller
 	}
 
 	/**
-	 * Validar acceso al tenant
+	 * Valida si el recurso pertenece al tenant actual
 	 */
 	protected function _validate_tenant_access($resource_tenant_id)
 	{
-		$current_tenant = current_tenant_id();
-
+		$current_tenant = $this->session->userdata('tenant_id');
 		if ($resource_tenant_id != $current_tenant) {
-			$this->_api_error(403, 'Acceso denegado');
+			$this->_api_error(403, 'Acceso denegado al recurso solicitado.');
 			return false;
 		}
-
 		return true;
 	}
 
 	/**
-	 * Validar vistas permitidas para el controlador
+	 * Valida si el método actual tiene permiso para renderizar la vista
+	 * (Opcional para control granular de vistas)
 	 */
 	protected function validate_view_access()
 	{
 		$current_method = $this->router->fetch_method();
-		// Solo aplicar la validación para métodos que representan vistas (terminan en _view).
-		// Esto evita bloquear endpoints API (como tenants, planes, pagos) que deben estar accesibles vía AJAX/API.
+
+		// Aplica solo a métodos terminados en "_view" para separar API de vistas
 		if (!empty($this->allowed_views) && substr($current_method, -5) === '_view') {
 			if (!in_array($current_method, $this->allowed_views)) {
 				$this->_api_error(403, 'Acceso denegado a la vista: ' . $current_method);
