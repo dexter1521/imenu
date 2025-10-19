@@ -5,6 +5,44 @@ defined('BASEPATH') or exit('No direct script access allowed');
 // ===== application/models/User_model.php =====
 class User_model extends CI_Model
 {
+	/**
+	 * Buscar usuario por email activo
+	 * @param string $email
+	 * @return object|null
+	 */
+	public function get_by_email($email)
+	{
+		$query = $this->db->get_where('users', ['email' => $email, 'activo' => 1], 1);
+		return $query->row();
+	}
+
+	/**
+	 * Buscar usuario por ID
+	 * @param int $user_id
+	 * @return object|null
+	 */
+	public function get($user_id)
+	{
+		$query = $this->db->get_where('users', ['id' => $user_id], 1);
+		return $query->row();
+	}
+
+	/**
+	 * Verificar contraseña
+	 * @param string $plain_password
+	 * @param string $hashed_password
+	 * @return bool
+	 */
+	public function verify_password($plain_password, $hashed_password)
+	{
+		return password_verify($plain_password, $hashed_password);
+	}
+
+	/**
+	 * Listar usuarios por tenant
+	 * @param int $tenant_id
+	 * @return array
+	 */
 	public function list_by_tenant($tenant_id)
 	{
 		return $this->db->select('u.id,u.nombre,u.email,u.rol,u.activo,p.can_products,p.can_categories,p.can_adjustments,p.can_view_stats')

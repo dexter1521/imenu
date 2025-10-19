@@ -104,12 +104,15 @@ $route['adminauth/logout'] = 'AdminAuth/logout';
 $route['adminpanel/login'] = 'AdminPanel/login';
 
 // Vistas del panel admin (requieren autenticación JWT con rol admin)
+$route['admin/dashboard'] = 'Admin/dashboard';
 $route['admin/tenants_view'] = 'Admin/tenants_view';
 $route['admin/planes_view'] = 'Admin/planes_view';
 $route['admin/pagos_view'] = 'Admin/pagos_view';
+$route['admin/suscripciones_view'] = 'Admin/suscripciones_view';
 $route['admin/dashboard_view'] = 'Admin/dashboard_view';
 
 // API endpoints del panel admin
+$route['admin/dashboard_stats'] = 'Admin/dashboard_stats';
 $route['api/admin/tenants']['get'] = 'Admin/tenants';
 $route['api/admin/tenant']['post'] = 'Admin/tenant_create';
 $route['api/admin/tenant/(:num)']['post'] = 'Admin/tenant_update/$1';
@@ -119,6 +122,9 @@ $route['api/admin/plan']['post'] = 'Admin/plan_create';
 $route['api/admin/plan/(:num)']['post'] = 'Admin/plan_update/$1';
 $route['api/admin/plan/(:num)']['delete'] = 'Admin/plan_delete/$1';
 $route['api/admin/pagos']['get'] = 'Admin/pagos';
+$route['admin/pago_stats'] = 'Admin/pago_stats';
+$route['admin/pago_detail/(:num)'] = 'Admin/pago_detail/$1';
+$route['admin/pago_export'] = 'Admin/pago_export';
 
 // Ruta para el login de tenants (global)
 $route['app/auth'] = 'TenantAuth/login';

@@ -53,4 +53,49 @@ class Plan_model extends CI_Model
 		$this->db->where('id', (int)$id);
 		return $this->db->delete('planes');
 	}
+
+	/**
+	 * Obtener planes más usados (con conteo de tenants)
+	 * @param int $limit
+	 * @return array
+	 */
+	public function get_most_popular($limit = 5)
+	{
+		$this->db->select('planes.*, COUNT(tenants.id) as tenant_count');
+		$this->db->from('planes');
+		$this->db->join('tenants', 'tenants.plan_id = planes.id', 'left');
+		$this->db->group_by('planes.id');
+		$this->db->order_by('tenant_count', 'DESC');
+		$this->db->order_by('planes.precio_mensual', 'DESC');
+		$this->db->limit($limit);
+		return $this->db->get()->result();
+	}
+
+	/**
+	 * Obtener estadísticas de planes para dashboard
+	 * @return array
+	 */
+	public function get_dashboard_stats()
+	{
+		// Total de planes
+		$total = $this->db->count_all('planes');
+
+		// Plan más caro
+		$this->db->select('nombre, precio_mensual');
+		$this->db->order_by('precio_mensual', 'DESC');
+		$this->db->limit(1);
+		$plan_premium = $this->db->get('planes')->row();
+
+		// Plan más barato
+		$this->db->select('nombre, precio_mensual');
+		$this->db->order_by('precio_mensual', 'ASC');
+		$this->db->limit(1);
+		$plan_basico = $this->db->get('planes')->row();
+
+		return [
+			'total_planes' => $total,
+			'plan_premium' => $plan_premium,
+			'plan_basico' => $plan_basico
+		];
+	}
 }

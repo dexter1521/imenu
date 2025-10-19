@@ -69,4 +69,120 @@ class Suscripcion_model extends CI_Model
 		$this->db->limit($limit, $offset);
 		return $this;
 	}
+
+	/**
+	 * Obtener todas las suscripciones de un tenant
+	 * @param int $tenant_id
+	 * @return array
+	 */
+	public function get_by_tenant($tenant_id)
+	{
+		return $this->db->where('tenant_id', (int)$tenant_id)
+			->order_by('inicio', 'DESC')
+			->get('suscripciones')
+			->result();
+	}
+
+	/**
+	 * Obtener suscripción activa de un tenant
+	 * @param int $tenant_id
+	 * @return object|null
+	 */
+	public function get_active_by_tenant($tenant_id)
+	{
+		$now = date('Y-m-d');
+		return $this->db->where('tenant_id', (int)$tenant_id)
+			->where('estatus', 'activa')
+			->where('inicio <=', $now)
+			->where('fin >=', $now)
+			->order_by('fin', 'DESC')
+			->get('suscripciones')
+			->row();
+	}
+
+	/**
+	 * Crear nueva suscripción
+	 * @param array $data
+	 * @return int|false
+	 */
+	public function insert($data)
+	{
+		if ($this->db->insert('suscripciones', $data)) {
+			return $this->db->insert_id();
+		}
+		return false;
+	}
+
+	/**
+	 * Actualizar suscripción
+	 * @param int $id
+	 * @param array $data
+	 * @return bool
+	 */
+	public function update($id, $data)
+	{
+		return $this->db->where('id', (int)$id)->update('suscripciones', $data);
+	}
+
+	/**
+	 * Eliminar suscripción
+	 * @param int $id
+	 * @return bool
+	 */
+	public function delete($id)
+	{
+		return $this->db->where('id', (int)$id)->delete('suscripciones');
+	}
+
+	/**
+	 * Contar suscripciones activas
+	 * @return int
+	 */
+	public function count_active()
+	{
+		$now = date('Y-m-d');
+		return $this->db->where('estatus', 'activa')
+			->where('inicio <=', $now)
+			->where('fin >=', $now)
+			->count_all_results('suscripciones');
+	}
+
+	/**
+	 * Obtener estadísticas de suscripciones para dashboard
+	 * @return array
+	 */
+	public function get_dashboard_stats()
+	{
+		$now = date('Y-m-d');
+
+		// Total de suscripciones
+		$total = $this->db->count_all('suscripciones');
+
+		// Suscripciones activas
+		$activas = $this->count_active();
+
+		// Suscripciones que expiran en los próximos 7 días
+		$this->db->where('estatus', 'activa');
+		$this->db->where('fin >=', $now);
+		$this->db->where('fin <=', date('Y-m-d', strtotime('+7 days')));
+		$expirando_pronto = $this->db->count_all_results('suscripciones');
+
+		// Suscripciones expiradas
+		$this->db->where('fin <', $now);
+		$this->db->where('estatus !=', 'cancelada');
+		$expiradas = $this->db->count_all_results('suscripciones');
+
+		// Suscripciones nuevas este mes
+		$this->db->where('MONTH(inicio)', date('m'));
+		$this->db->where('YEAR(inicio)', date('Y'));
+		$nuevas_mes = $this->db->count_all_results('suscripciones');
+
+		return [
+			'total' => $total,
+			'activas' => $activas,
+			'expirando_pronto' => $expirando_pronto,
+			'expiradas' => $expiradas,
+			'nuevas_mes' => $nuevas_mes
+		];
+	}
 }

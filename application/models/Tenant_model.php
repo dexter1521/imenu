@@ -169,4 +169,37 @@ class Tenant_model extends CI_Model
 		$this->db->where('id', (int)$id);
 		return $this->db->get('tenants')->row();
 	}
+
+	/**
+	 * Obtener estadísticas de tenants para dashboard
+	 * @return array
+	 */
+	public function get_dashboard_stats()
+	{
+		// Total de tenants
+		$total = $this->db->count_all('tenants');
+
+		// Tenants activos
+		$activos = $this->db->where('activo', 1)->count_all_results('tenants');
+
+		// Tenants suspendidos
+		$suspendidos = $total - $activos;
+
+		// Tenants creados este mes
+		$this->db->where('MONTH(created_at)', date('m'));
+		$this->db->where('YEAR(created_at)', date('Y'));
+		$nuevos_mes = $this->db->count_all_results('tenants');
+
+		// Tenants creados últimos 7 días
+		$this->db->where('created_at >=', date('Y-m-d', strtotime('-7 days')));
+		$nuevos_semana = $this->db->count_all_results('tenants');
+
+		return [
+			'total' => $total,
+			'activos' => $activos,
+			'suspendidos' => $suspendidos,
+			'nuevos_mes' => $nuevos_mes,
+			'nuevos_semana' => $nuevos_semana
+		];
+	}
 }

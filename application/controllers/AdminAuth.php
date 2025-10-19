@@ -4,13 +4,14 @@
  * @property CI_DB $db
  * @property CI_Input $input
  * @property CI_Output $output
+ * @property User_model $user_model
  */
 class AdminAuth extends CI_Controller
 {
 	public function __construct()
 	{
 		parent::__construct();
-		$this->load->database();
+		$this->load->model('User_model', 'user_model');
 		$this->output->set_content_type('application/json');
 	}
 
@@ -19,14 +20,18 @@ class AdminAuth extends CI_Controller
 		try {
 			$email = $this->input->post('email');
 			$pass  = $this->input->post('password');
+
 			if (!$email || !$pass) {
 				return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'msg' => 'email/password requeridos']));
 			}
-			$q = $this->db->get_where('users', ['email' => $email, 'activo' => 1], 1);
-			$u = $q->row();
-			if (!$u || !password_verify($pass, $u->password)) {
+
+			// Buscar usuario por email
+			$u = $this->user_model->get_by_email($email);
+
+			if (!$u || !$this->user_model->verify_password($pass, $u->password)) {
 				return $this->output->set_status_header(401)->set_output(json_encode(['ok' => false, 'msg' => 'Credenciales inválidas']));
 			}
+
 			// Solo permitir usuarios con rol admin en este endpoint
 			if (!isset($u->rol) || $u->rol !== 'admin') {
 				return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'msg' => 'No autorizado como admin']));

@@ -22,6 +22,15 @@
 		plan_update: (id) => url('admin/plan_update/' + encodeURIComponent(id)),
 		plan_delete: (id) => url('admin/plan_delete/' + encodeURIComponent(id)),
 		pagos: url('admin/pagos'),
+		pago_stats: url('admin/pago_stats'),
+		pago_detail: (id) => url('admin/pago_detail/' + encodeURIComponent(id)),
+		pago_export: url('admin/pago_export'),
+		suscripciones: url('admin/suscripciones'),
+		suscripcion_create: url('admin/suscripcion_create'),
+		suscripcion_update: (id) => url('admin/suscripcion_update/' + encodeURIComponent(id)),
+		suscripcion_delete: (id) => url('admin/suscripcion_delete/' + encodeURIComponent(id)),
+		tenant_suscripciones: (id) => url('admin/tenant_suscripciones/' + encodeURIComponent(id)),
+		dashboard_stats: url('admin/dashboard_stats'),
 		auth_login: url('adminpanel/login')
 	};
 
@@ -44,11 +53,11 @@
 	// Función para actualizar el token CSRF desde la cookie
 	function updateCsrfToken() {
 		if (!window.IMENU_CSRF_TOKEN_NAME) return;
-		
-		const cookieName = window.IMENU && window.IMENU.csrf && window.IMENU.csrf.cookie_name 
-			? window.IMENU.csrf.cookie_name 
+
+		const cookieName = window.IMENU && window.IMENU.csrf && window.IMENU.csrf.cookie_name
+			? window.IMENU.csrf.cookie_name
 			: 'csrf_cookie_name';
-		
+
 		try {
 			const match = document.cookie.match(new RegExp('(^|; )' + cookieName.replace(/([.*+?^${}()|[\]\\])/g, '\\$1') + '=([^;]*)'));
 			if (match) {
@@ -65,7 +74,7 @@
 
 	async function fetchJson(url, opts = {}) {
 		opts.headers = Object.assign({}, opts.headers || {}, getAuthHeaders());
-		
+
 		// Si es POST, agregar token CSRF al body
 		if (opts.method === 'POST' && window.IMENU_CSRF_TOKEN_NAME && window.IMENU_CSRF_TOKEN_VALUE) {
 			if (!opts.body) {
@@ -79,14 +88,14 @@
 				opts.body = params.toString();
 			}
 		}
-		
+
 		// Enviar cookies (cookie HttpOnly) para autenticación
 		if (!opts.credentials) opts.credentials = 'same-origin';
 		const res = await fetch(url, opts);
-		
+
 		// Actualizar token CSRF después de cada petición
 		updateCsrfToken();
-		
+
 		if (!res.ok) {
 			if (res.status === 401) {
 				// token expirado o no autorizado: cerrar sesión automáticamente
@@ -105,12 +114,12 @@
 	// Util: enviar formulario como application/x-www-form-urlencoded
 	async function postForm(url, payload) {
 		const params = new URLSearchParams();
-		
+
 		// Agregar token CSRF si está disponible
 		if (window.IMENU_CSRF_TOKEN_NAME && window.IMENU_CSRF_TOKEN_VALUE) {
 			params.append(window.IMENU_CSRF_TOKEN_NAME, window.IMENU_CSRF_TOKEN_VALUE);
 		}
-		
+
 		for (const k in payload) {
 			if (payload[k] === null || payload[k] === undefined) continue;
 			params.append(k, payload[k]);
@@ -119,10 +128,10 @@
 		const fetchOpts = { method: 'POST', headers: headers, body: params.toString() };
 		if (!fetchOpts.credentials) fetchOpts.credentials = 'same-origin';
 		const res = await fetch(url, fetchOpts);
-		
+
 		// Actualizar token CSRF después de cada petición
 		updateCsrfToken();
-		
+
 		if (!res.ok) {
 			if (res.status === 401) {
 				await res.text();
@@ -398,36 +407,580 @@
 	}
 
 	// Pagos
-	async function fetchPagos() {
-		const data = await fetchJson(api.pagos);
-		if (!data.ok) throw new Error('Error cargando pagos');
-		renderPagos(data.data || []);
+	// ===== DASHBOARD =====
+
+	let ingresosChartInstance = null; // Guardar instancia de Chart
+
+	/**
+	 * Fetch estadísticas del dashboard
+	 */
+	async function fetchDashboardStats() {
+		try {
+			const data = await fetchJson(api.dashboard_stats);
+			if (!data.ok) throw new Error('Error cargando estadísticas');
+
+			renderDashboardStats(data.data);
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
 	}
 
+	/**
+	 * Renderizar todas las estadísticas del dashboard
+	 */
+	function renderDashboardStats(stats) {
+		// KPIs Principales
+		updateKPICards(stats);
+
+		// Gráfica de ingresos
+		renderIngresosChart(stats.grafica_ingresos || []);
+
+		// Planes populares
+		renderPlanesPopulares(stats.planes_populares || []);
+
+		// Resúmenes detallados
+		updateResumenTenants(stats.tenants);
+		updateResumenIngresos(stats.ingresos);
+		updateResumenPedidos(stats.pedidos);
+	}
+
+	/**
+	 * Actualizar tarjetas de KPIs
+	 */
+	function updateKPICards(stats) {
+		// Tenants
+		document.getElementById('kpi-tenants-activos').textContent = stats.tenants.activos || 0;
+		document.getElementById('kpi-tenants-total').textContent = stats.tenants.total || 0;
+
+		// Ingresos
+		document.getElementById('kpi-ingresos-mes').textContent = '$' + parseFloat(stats.ingresos.mes_actual || 0).toFixed(2);
+
+		// Crecimiento
+		const crecimiento = stats.ingresos.crecimiento_porcentaje || 0;
+		const crecimientoElem = document.getElementById('kpi-crecimiento');
+		if (crecimiento >= 0) {
+			crecimientoElem.innerHTML = '<i class="fas fa-arrow-up text-success"></i> ' + Math.abs(crecimiento) + '%';
+			crecimientoElem.className = 'text-xs mt-1 text-success';
+		} else {
+			crecimientoElem.innerHTML = '<i class="fas fa-arrow-down text-danger"></i> ' + Math.abs(crecimiento) + '%';
+			crecimientoElem.className = 'text-xs mt-1 text-danger';
+		}
+
+		// Suscripciones
+		document.getElementById('kpi-suscripciones-activas').textContent = stats.suscripciones.activas || 0;
+		document.getElementById('kpi-suscripciones-expirando').textContent = stats.suscripciones.expirando_pronto || 0;
+
+		// Pedidos
+		document.getElementById('kpi-pedidos-mes').textContent = stats.pedidos.mes_actual || 0;
+		document.getElementById('kpi-pedidos-total').textContent = stats.pedidos.total || 0;
+
+		// Pagos
+		document.getElementById('kpi-pagos-exitosos').textContent = stats.pagos.pagos_exitosos || 0;
+		document.getElementById('kpi-pagos-pendientes').textContent = stats.pagos.pagos_pendientes || 0;
+
+		// Métricas generales
+		document.getElementById('kpi-tasa-retencion').textContent = (stats.metricas_generales.tasa_retencion || 0) + '%';
+		document.getElementById('kpi-ingreso-promedio').textContent = '$' + parseFloat(stats.metricas_generales.ingreso_promedio_por_tenant || 0).toFixed(2);
+	}
+
+	/**
+	 * Renderizar gráfica de ingresos con Chart.js
+	 */
+	function renderIngresosChart(data) {
+		const canvas = document.getElementById('ingresosChart');
+		if (!canvas) return;
+
+		const ctx = canvas.getContext('2d');
+
+		// Destruir instancia anterior si existe
+		if (ingresosChartInstance) {
+			ingresosChartInstance.destroy();
+		}
+
+		// Preparar datos
+		const labels = data.map(item => {
+			const [year, month] = item.mes.split('-');
+			const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+			return monthNames[parseInt(month) - 1] + ' ' + year;
+		});
+
+		const ingresos = data.map(item => parseFloat(item.ingresos || 0));
+		const pagos = data.map(item => parseInt(item.pagos_exitosos || 0));
+
+		// Crear gráfica
+		ingresosChartInstance = new Chart(ctx, {
+			type: 'line',
+			data: {
+				labels: labels,
+				datasets: [{
+					label: 'Ingresos ($)',
+					data: ingresos,
+					borderColor: '#4e73df',
+					backgroundColor: 'rgba(78, 115, 223, 0.1)',
+					borderWidth: 2,
+					fill: true,
+					tension: 0.4,
+					yAxisID: 'y'
+				}, {
+					label: 'Pagos Exitosos',
+					data: pagos,
+					borderColor: '#1cc88a',
+					backgroundColor: 'rgba(28, 200, 138, 0.1)',
+					borderWidth: 2,
+					fill: true,
+					tension: 0.4,
+					yAxisID: 'y1'
+				}]
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: {
+						display: true,
+						position: 'bottom'
+					},
+					tooltip: {
+						mode: 'index',
+						intersect: false,
+						callbacks: {
+							label: function (context) {
+								let label = context.dataset.label || '';
+								if (label) label += ': ';
+								if (context.dataset.yAxisID === 'y') {
+									label += '$' + context.parsed.y.toFixed(2);
+								} else {
+									label += context.parsed.y;
+								}
+								return label;
+							}
+						}
+					}
+				},
+				scales: {
+					y: {
+						type: 'linear',
+						display: true,
+						position: 'left',
+						ticks: {
+							callback: function (value) {
+								return '$' + value.toFixed(0);
+							}
+						},
+						title: {
+							display: true,
+							text: 'Ingresos ($)'
+						}
+					},
+					y1: {
+						type: 'linear',
+						display: true,
+						position: 'right',
+						grid: {
+							drawOnChartArea: false
+						},
+						title: {
+							display: true,
+							text: 'Cantidad de Pagos'
+						}
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * Renderizar planes más populares
+	 */
+	function renderPlanesPopulares(planes) {
+		const container = document.getElementById('planes-populares-container');
+		if (!container) return;
+
+		if (planes.length === 0) {
+			container.innerHTML = '<p class="text-muted text-center">No hay planes disponibles</p>';
+			return;
+		}
+
+		let html = '';
+		planes.forEach((plan, index) => {
+			const percentage = plan.tenant_count > 0 ? 100 : 0;
+			const colorClass = index === 0 ? 'success' : index === 1 ? 'info' : 'warning';
+
+			html += `
+				<div class="mb-3">
+					<h4 class="small font-weight-bold">
+						${escapeHtml(plan.nombre)}
+						<span class="float-right">${plan.tenant_count || 0} tenants</span>
+					</h4>
+					<div class="progress">
+						<div class="progress-bar bg-${colorClass}" role="progressbar" 
+							style="width: ${percentage}%" 
+							aria-valuenow="${plan.tenant_count}" 
+							aria-valuemin="0" 
+							aria-valuemax="100">
+						</div>
+					</div>
+					<small class="text-muted">$${parseFloat(plan.precio_mensual || 0).toFixed(2)}/mes</small>
+				</div>
+			`;
+		});
+
+		container.innerHTML = html;
+	}
+
+	/**
+	 * Actualizar resumen de tenants
+	 */
+	function updateResumenTenants(tenants) {
+		const total = tenants.total || 0;
+		const activos = tenants.activos || 0;
+		const suspendidos = tenants.suspendidos || 0;
+
+		const activosPorc = total > 0 ? Math.round((activos / total) * 100) : 0;
+		const suspendidosPorc = total > 0 ? Math.round((suspendidos / total) * 100) : 0;
+
+		document.getElementById('tenants-activos-porcentaje').textContent = activosPorc + '%';
+		document.getElementById('tenants-activos-barra').style.width = activosPorc + '%';
+
+		document.getElementById('tenants-suspendidos-porcentaje').textContent = suspendidosPorc + '%';
+		document.getElementById('tenants-suspendidos-barra').style.width = suspendidosPorc + '%';
+
+		document.getElementById('tenants-nuevos-mes').textContent = tenants.nuevos_mes || 0;
+		document.getElementById('tenants-nuevos-semana').textContent = tenants.nuevos_semana || 0;
+	}
+
+	/**
+	 * Actualizar resumen de ingresos
+	 */
+	function updateResumenIngresos(ingresos) {
+		document.getElementById('ingresos-total').textContent = '$' + parseFloat(ingresos.total || 0).toFixed(2);
+		document.getElementById('ingresos-mes-actual').textContent = '$' + parseFloat(ingresos.mes_actual || 0).toFixed(2);
+		document.getElementById('ingresos-mes-anterior').textContent = '$' + parseFloat(ingresos.mes_anterior || 0).toFixed(2);
+		document.getElementById('ingresos-promedio-diario').textContent = '$' + parseFloat(ingresos.promedio_diario || 0).toFixed(2);
+
+		// Proyección mensual basada en promedio diario
+		const proyeccion = (ingresos.promedio_diario || 0) * 30;
+		document.getElementById('ingresos-proyeccion').textContent = '$' + proyeccion.toFixed(2);
+	}
+
+	/**
+	 * Actualizar resumen de pedidos
+	 */
+	function updateResumenPedidos(pedidos) {
+		document.getElementById('pedidos-total-sistema').textContent = pedidos.total || 0;
+		document.getElementById('pedidos-mes-actual').textContent = pedidos.mes_actual || 0;
+		document.getElementById('pedidos-ultima-semana').textContent = pedidos.ultima_semana || 0;
+		document.getElementById('pedidos-promedio-diario').textContent = parseFloat(pedidos.promedio_diario || 0).toFixed(1);
+	}
+
+	// ===== PAGOS =====
+
+	/**
+	 * Fetch pagos con filtros opcionales
+	 */
+	async function fetchPagos(filters = {}) {
+		// Construir query string
+		const params = new URLSearchParams();
+		if (filters.tenant_id) params.append('tenant_id', filters.tenant_id);
+		if (filters.status) params.append('status', filters.status);
+		if (filters.metodo) params.append('metodo', filters.metodo);
+		if (filters.fecha_inicio) params.append('fecha_inicio', filters.fecha_inicio);
+		if (filters.fecha_fin) params.append('fecha_fin', filters.fecha_fin);
+		if (filters.concepto) params.append('concepto', filters.concepto);
+
+		const queryString = params.toString();
+		const url = queryString ? api.pagos + '?' + queryString : api.pagos;
+
+		const data = await fetchJson(url);
+		if (!data.ok) throw new Error('Error cargando pagos');
+
+		renderPagos(data.data || []);
+
+		// Actualizar estadísticas
+		fetchPagosStats(filters);
+	}
+
+	/**
+	 * Fetch estadísticas de pagos
+	 */
+	async function fetchPagosStats(filters = {}) {
+		const params = new URLSearchParams();
+		if (filters.fecha_inicio) params.append('fecha_inicio', filters.fecha_inicio);
+		if (filters.fecha_fin) params.append('fecha_fin', filters.fecha_fin);
+		if (filters.tenant_id) params.append('tenant_id', filters.tenant_id);
+
+		const queryString = params.toString();
+		const url = queryString ? api.pago_stats + '?' + queryString : api.pago_stats;
+
+		const data = await fetchJson(url);
+		if (data.ok && data.data) {
+			updatePagosStats(data.data);
+		}
+	}
+
+	/**
+	 * Actualizar tarjetas de estadísticas
+	 */
+	function updatePagosStats(stats) {
+		const ingresosMes = document.getElementById('stat-ingresos-mes');
+		const pagosExitosos = document.getElementById('stat-pagos-exitosos');
+		const pagosPendientes = document.getElementById('stat-pagos-pendientes');
+		const pagosFallidos = document.getElementById('stat-pagos-fallidos');
+
+		if (ingresosMes) ingresosMes.textContent = '$' + parseFloat(stats.ingresos_mes || 0).toFixed(2);
+		if (pagosExitosos) pagosExitosos.textContent = stats.pagos_exitosos || 0;
+		if (pagosPendientes) pagosPendientes.textContent = stats.pagos_pendientes || 0;
+		if (pagosFallidos) pagosFallidos.textContent = stats.pagos_fallidos || 0;
+	}
+
+	/**
+	 * Renderizar tabla de pagos con badges de estado
+	 */
 	function renderPagos(rows) {
 		const tbody = document.getElementById('pagos-tbody');
 		if (!tbody) return;
 		tbody.innerHTML = '';
+
+		if (rows.length === 0) {
+			tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No hay pagos para mostrar</td></tr>';
+			return;
+		}
+
 		rows.forEach(r => {
 			const tr = document.createElement('tr');
+
+			// Badge de estado
+			let statusBadge = '';
+			if (r.status === 'pagado') {
+				statusBadge = '<span class="badge badge-success">Pagado</span>';
+			} else if (r.status === 'pendiente') {
+				statusBadge = '<span class="badge badge-warning">Pendiente</span>';
+			} else if (r.status === 'fallido') {
+				statusBadge = '<span class="badge badge-danger">Fallido</span>';
+			} else {
+				statusBadge = '<span class="badge badge-secondary">' + escapeHtml(r.status) + '</span>';
+			}
+
 			tr.innerHTML = `
                 <td>${r.id}</td>
-                <td>${escapeHtml(r.tenant_id || '')}</td>
-                <td>${escapeHtml(r.concepto || '')}</td>
-                <td>$${parseFloat(r.monto || 0).toFixed(2)}</td>
-                <td>${escapeHtml(r.metodo || '')}</td>
-                <td>${escapeHtml(r.referencia || '')}</td>
-                <td>${escapeHtml(r.status || '')}</td>
-                <td>${r.fecha || ''}</td>
                 <td>
-                    <button class="btn btn-sm btn-info">Ver</button>
+                    <strong>${escapeHtml(r.tenant_nombre || 'N/A')}</strong><br>
+                    <small class="text-muted">${escapeHtml(r.tenant_slug || '')}</small>
+                </td>
+                <td>${escapeHtml(r.concepto || '')}</td>
+                <td class="text-right font-weight-bold text-success">$${parseFloat(r.monto || 0).toFixed(2)}</td>
+                <td>
+                    <span class="badge badge-info">${escapeHtml(r.metodo || '')}</span>
+                </td>
+                <td><small>${escapeHtml(r.referencia || 'N/A')}</small></td>
+                <td>${statusBadge}</td>
+                <td><small>${formatDate(r.fecha) || ''}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-info btn-ver-pago" data-id="${r.id}" title="Ver detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </td>
             `;
 			tbody.appendChild(tr);
 		});
+
+		// Adjuntar eventos a botones
+		document.querySelectorAll('.btn-ver-pago').forEach(btn => {
+			btn.addEventListener('click', onVerPago);
+		});
 	}
 
-	// Helpers
+	/**
+	 * Ver detalles de un pago
+	 */
+	async function onVerPago(e) {
+		e.preventDefault();
+		const id = e.currentTarget.getAttribute('data-id');
+		if (!id) return;
+
+		try {
+			const data = await fetchJson(api.pago_detail(id));
+			if (!data.ok || !data.data) {
+				showAlert('Error cargando detalles del pago', 'error');
+				return;
+			}
+
+			mostrarDetallePago(data.data);
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
+	}
+
+	/**
+	 * Mostrar modal con detalles completos del pago
+	 */
+	function mostrarDetallePago(pago) {
+		// Información del pago
+		document.getElementById('pago-detalle-id').textContent = pago.id;
+		document.getElementById('pago-detalle-concepto').textContent = pago.concepto || 'N/A';
+		document.getElementById('pago-detalle-monto').textContent = '$' + parseFloat(pago.monto || 0).toFixed(2);
+		document.getElementById('pago-detalle-metodo').textContent = pago.metodo || 'N/A';
+		document.getElementById('pago-detalle-referencia').textContent = pago.referencia || 'N/A';
+
+		// Badge de estado
+		const estadoElem = document.getElementById('pago-detalle-estado');
+		if (pago.status === 'pagado') {
+			estadoElem.innerHTML = '<span class="badge badge-success badge-lg">Pagado</span>';
+		} else if (pago.status === 'pendiente') {
+			estadoElem.innerHTML = '<span class="badge badge-warning badge-lg">Pendiente</span>';
+		} else if (pago.status === 'fallido') {
+			estadoElem.innerHTML = '<span class="badge badge-danger badge-lg">Fallido</span>';
+		} else {
+			estadoElem.textContent = pago.status || 'N/A';
+		}
+
+		document.getElementById('pago-detalle-fecha').textContent = formatDate(pago.fecha) || 'N/A';
+		document.getElementById('pago-detalle-notas').textContent = pago.notas || 'Sin notas';
+
+		// Información del tenant
+		document.getElementById('pago-detalle-tenant-nombre').textContent = pago.tenant_nombre || 'N/A';
+		document.getElementById('pago-detalle-tenant-email').textContent = pago.tenant_email || 'N/A';
+		document.getElementById('pago-detalle-tenant-slug').textContent = pago.tenant_slug || 'N/A';
+
+		const tenantEstadoElem = document.getElementById('pago-detalle-tenant-estado');
+		if (pago.tenant_activo == 1) {
+			tenantEstadoElem.innerHTML = '<span class="badge badge-success">Activo</span>';
+		} else {
+			tenantEstadoElem.innerHTML = '<span class="badge badge-secondary">Suspendido</span>';
+		}
+
+		// Información de la suscripción (si existe)
+		const suscripcionCard = document.getElementById('pago-detalle-suscripcion-card');
+		if (pago.suscripcion_id) {
+			suscripcionCard.style.display = 'block';
+			document.getElementById('pago-detalle-plan-nombre').textContent = pago.plan_nombre || 'N/A';
+			document.getElementById('pago-detalle-plan-precio').textContent = '$' + parseFloat(pago.plan_precio || 0).toFixed(2);
+			document.getElementById('pago-detalle-suscripcion-inicio').textContent = formatDate(pago.suscripcion_inicio) || 'N/A';
+			document.getElementById('pago-detalle-suscripcion-fin').textContent = formatDate(pago.suscripcion_fin) || 'N/A';
+
+			const susEstadoElem = document.getElementById('pago-detalle-suscripcion-estado');
+			susEstadoElem.innerHTML = '<span class="badge badge-' + getBadgeClass(pago.suscripcion_estatus) + '">' +
+				ucfirst(pago.suscripcion_estatus || 'N/A') + '</span>';
+		} else {
+			suscripcionCard.style.display = 'none';
+		}
+
+		// Abrir modal
+		if (window.jQuery && $('#pagoDetalleModal').modal) {
+			$('#pagoDetalleModal').modal('show');
+		}
+	}
+
+	/**
+	 * Cargar tenants para el select de filtros
+	 */
+	async function loadTenantsForFilterSelect() {
+		try {
+			const data = await fetchJson(api.tenants);
+			if (!data.ok) return;
+
+			const select = document.getElementById('filtro-tenant');
+			if (!select) return;
+
+			select.innerHTML = '<option value="">Todos los tenants</option>';
+			(data.data || []).forEach(tenant => {
+				const option = document.createElement('option');
+				option.value = tenant.id;
+				option.textContent = tenant.nombre + ' (' + tenant.slug + ')';
+				select.appendChild(option);
+			});
+		} catch (err) {
+			console.error('Error cargando tenants:', err);
+		}
+	}
+
+	/**
+	 * Aplicar filtros al formulario
+	 */
+	function aplicarFiltrosPagos(e) {
+		e.preventDefault();
+
+		const filters = {
+			tenant_id: document.getElementById('filtro-tenant')?.value || '',
+			status: document.getElementById('filtro-estado')?.value || '',
+			metodo: document.getElementById('filtro-metodo')?.value || '',
+			concepto: document.getElementById('filtro-concepto')?.value || '',
+			fecha_inicio: document.getElementById('filtro-fecha-inicio')?.value || '',
+			fecha_fin: document.getElementById('filtro-fecha-fin')?.value || ''
+		};
+
+		fetchPagos(filters).catch(e => showAlert(e.message, 'error'));
+	}
+
+	/**
+	 * Limpiar filtros
+	 */
+	function limpiarFiltrosPagos() {
+		document.getElementById('filtro-tenant').value = '';
+		document.getElementById('filtro-estado').value = '';
+		document.getElementById('filtro-metodo').value = '';
+		document.getElementById('filtro-concepto').value = '';
+		document.getElementById('filtro-fecha-inicio').value = '';
+		document.getElementById('filtro-fecha-fin').value = '';
+
+		fetchPagos().catch(e => showAlert(e.message, 'error'));
+	}
+
+	/**
+	 * Exportar pagos
+	 */
+	function exportarPagos(e) {
+		e.preventDefault();
+
+		const formato = document.getElementById('export-formato').value;
+		const fechaInicio = document.getElementById('export-fecha-inicio').value;
+		const fechaFin = document.getElementById('export-fecha-fin').value;
+
+		// Obtener filtros actuales
+		const filters = {
+			formato: formato,
+			tenant_id: document.getElementById('filtro-tenant')?.value || '',
+			status: document.getElementById('filtro-estado')?.value || '',
+			metodo: document.getElementById('filtro-metodo')?.value || '',
+			fecha_inicio: fechaInicio || document.getElementById('filtro-fecha-inicio')?.value || '',
+			fecha_fin: fechaFin || document.getElementById('filtro-fecha-fin')?.value || ''
+		};
+
+		// Construir URL de exportación
+		const params = new URLSearchParams();
+		Object.keys(filters).forEach(key => {
+			if (filters[key]) params.append(key, filters[key]);
+		});
+
+		const exportUrl = api.pago_export + '?' + params.toString();
+
+		// Abrir en nueva ventana para descargar
+		window.open(exportUrl, '_blank');
+
+		// Cerrar modal
+		if (window.jQuery && $('#exportPagosModal').modal) {
+			$('#exportPagosModal').modal('hide');
+		}
+
+		showAlert('Exportación iniciada. El archivo se descargará automáticamente.', 'success');
+	}
+
+	/**
+	 * Obtener clase de badge según estado
+	 */
+	function getBadgeClass(status) {
+		const map = {
+			'activa': 'success',
+			'pagado': 'success',
+			'pendiente': 'warning',
+			'fallido': 'danger',
+			'expirada': 'danger',
+			'cancelada': 'secondary'
+		};
+		return map[status] || 'secondary';
+	}
+
+	// ===== HELPERS =====
 	function escapeHtml(str) {
 		if (str === null || str === undefined) return '';
 		return String(str)
@@ -478,9 +1031,13 @@
 		document.body.insertBefore(container, document.body.firstChild);
 
 		// fetch data if elements exist
+		if (document.getElementById('ingresosChart')) fetchDashboardStats().catch(e => showAlert(e.message, 'error'));
 		if (document.getElementById('tenants-tbody')) fetchTenants().catch(e => showAlert(e.message, 'error'));
 		if (document.getElementById('planes-tbody')) fetchPlanes().catch(e => showAlert(e.message, 'error'));
-		if (document.getElementById('pagos-tbody')) fetchPagos().catch(e => showAlert(e.message, 'error'));
+		if (document.getElementById('pagos-tbody')) {
+			fetchPagos().catch(e => showAlert(e.message, 'error'));
+			loadTenantsForFilterSelect(); // Cargar tenants en filtro
+		}
 
 		// hook new tenant button -> show modal
 		const btnNewTenant = document.getElementById('btn-new-tenant');
@@ -634,7 +1191,397 @@
 				}
 			});
 		}
+
+		// ===== SUSCRIPCIONES =====
+
+		// Cargar suscripciones si estamos en esa vista
+		const suscripcionesTbody = document.getElementById('suscripciones-tbody');
+		if (suscripcionesTbody) {
+			fetchSuscripciones();
+		}
+
+		// Botón nueva suscripción
+		const btnNewSuscripcion = document.getElementById('btn-new-suscripcion');
+		if (btnNewSuscripcion) {
+			btnNewSuscripcion.addEventListener('click', function (e) {
+				e.preventDefault();
+				openSuscripcionModal();
+			});
+		}
+
+		// Form de suscripción
+		const suscripcionForm = document.getElementById('suscripcion-form');
+		if (suscripcionForm) {
+			// Cargar tenants y planes en los selects
+			loadTenantsForSelect();
+			loadPlanesForSelect('suscripcion-plan');
+
+			suscripcionForm.addEventListener('submit', function (e) {
+				e.preventDefault();
+				const id = document.getElementById('suscripcion-id').value;
+				const fd = new FormData(suscripcionForm);
+				const payload = {};
+				for (const [k, v] of fd.entries()) {
+					if (k !== 'id') payload[k] = v;
+				}
+
+				if (id) {
+					updateSuscripcion(id, payload).catch(err => showAlert(err.message, 'error')).then(() => {
+						if (window.jQuery && $('#suscripcionModal').modal) {
+							$('#suscripcionModal').modal('hide');
+						}
+					});
+				} else {
+					createSuscripcion(payload).catch(err => showAlert(err.message, 'error')).then(() => {
+						if (window.jQuery && $('#suscripcionModal').modal) {
+							$('#suscripcionModal').modal('hide');
+						}
+					});
+				}
+			});
+		}
 	}
+
+	// ===== Funciones de Suscripciones =====
+
+	async function fetchSuscripciones() {
+		try {
+			const data = await fetchJson(api.suscripciones);
+			if (!data.ok) throw new Error('Error cargando suscripciones');
+			renderSuscripciones(data.data || []);
+			updateSuscripcionesStats(data.data || []);
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
+	}
+
+	function renderSuscripciones(rows) {
+		const tbody = document.getElementById('suscripciones-tbody');
+		if (!tbody) return;
+		tbody.innerHTML = '';
+
+		if (rows.length === 0) {
+			tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay suscripciones registradas</td></tr>';
+			return;
+		}
+
+		rows.forEach(r => {
+			const tr = document.createElement('tr');
+
+			// Calcular días restantes
+			const hoy = new Date();
+			const fin = new Date(r.fin);
+			const diffTime = fin - hoy;
+			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+			let diasRestantes = '-';
+			let badgeClass = 'secondary';
+
+			if (r.estatus === 'activa') {
+				if (diffDays > 30) {
+					diasRestantes = `<span class="text-success">${diffDays} días</span>`;
+					badgeClass = 'success';
+				} else if (diffDays > 0) {
+					diasRestantes = `<span class="text-warning">${diffDays} días</span>`;
+					badgeClass = 'warning';
+				} else {
+					diasRestantes = `<span class="text-danger">Vencida hace ${Math.abs(diffDays)} días</span>`;
+					badgeClass = 'danger';
+				}
+			} else if (r.estatus === 'pendiente') {
+				badgeClass = 'warning';
+				diasRestantes = '-';
+			} else if (r.estatus === 'expirada' || r.estatus === 'cancelada') {
+				badgeClass = 'danger';
+				diasRestantes = '-';
+			}
+
+			tr.innerHTML = `
+				<td>${r.id}</td>
+				<td>${escapeHtml(r.tenant_id)}</td>
+				<td>${escapeHtml(r.plan_id)}</td>
+				<td>${formatDate(r.inicio)}</td>
+				<td>${formatDate(r.fin)}</td>
+				<td><span class="badge badge-${badgeClass}">${ucfirst(r.estatus)}</span></td>
+				<td>${diasRestantes}</td>
+				<td class="text-right">
+					<button class="btn btn-sm btn-info btn-suscripcion-historico" data-tenant="${r.tenant_id}" title="Ver Histórico">
+						<i class="fas fa-history"></i>
+					</button>
+					<button class="btn btn-sm btn-primary btn-suscripcion-edit" data-id="${r.id}">
+						<i class="fas fa-edit"></i>
+					</button>
+					<button class="btn btn-sm btn-danger btn-suscripcion-delete" data-id="${r.id}">
+						<i class="fas fa-trash"></i>
+					</button>
+				</td>
+			`;
+			tbody.appendChild(tr);
+		});
+
+		// Attach handlers
+		tbody.querySelectorAll('.btn-suscripcion-edit').forEach(b => b.addEventListener('click', onSuscripcionEdit));
+		tbody.querySelectorAll('.btn-suscripcion-delete').forEach(b => b.addEventListener('click', onSuscripcionDelete));
+		tbody.querySelectorAll('.btn-suscripcion-historico').forEach(b => b.addEventListener('click', onSuscripcionHistorico));
+	}
+
+	function updateSuscripcionesStats(rows) {
+		const hoy = new Date();
+		let activas = 0;
+		let proximas = 0;
+		let expiradas = 0;
+
+		rows.forEach(r => {
+			const fin = new Date(r.fin);
+			const diffTime = fin - hoy;
+			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+			if (r.estatus === 'activa') {
+				if (diffDays > 30) {
+					activas++;
+				} else if (diffDays > 0) {
+					proximas++;
+				} else {
+					expiradas++;
+				}
+			} else if (r.estatus === 'expirada') {
+				expiradas++;
+			}
+		});
+
+		const statActivas = document.getElementById('stat-activas');
+		const statVencer = document.getElementById('stat-vencer');
+		const statExpiradas = document.getElementById('stat-expiradas');
+
+		if (statActivas) statActivas.textContent = activas;
+		if (statVencer) statVencer.textContent = proximas;
+		if (statExpiradas) statExpiradas.textContent = expiradas;
+	}
+
+	function openSuscripcionModal(suscripcion = null) {
+		const form = document.getElementById('suscripcion-form');
+		if (!form) return;
+
+		form.reset();
+		document.getElementById('suscripcion-id').value = '';
+		document.getElementById('suscripcion-modal-title').textContent = suscripcion ? 'Editar Suscripción' : 'Crear Suscripción';
+
+		if (suscripcion) {
+			document.getElementById('suscripcion-id').value = suscripcion.id;
+			document.getElementById('suscripcion-tenant').value = suscripcion.tenant_id;
+			document.getElementById('suscripcion-plan').value = suscripcion.plan_id;
+			document.getElementById('suscripcion-inicio').value = suscripcion.inicio;
+			document.getElementById('suscripcion-fin').value = suscripcion.fin;
+			document.getElementById('suscripcion-estatus').value = suscripcion.estatus;
+		} else {
+			// Establecer fecha de inicio por defecto (hoy)
+			const hoy = new Date().toISOString().split('T')[0];
+			document.getElementById('suscripcion-inicio').value = hoy;
+
+			// Establecer fecha de fin por defecto (1 mes después)
+			const fin = new Date();
+			fin.setMonth(fin.getMonth() + 1);
+			document.getElementById('suscripcion-fin').value = fin.toISOString().split('T')[0];
+		}
+
+		if (window.jQuery && $('#suscripcionModal').modal) {
+			$('#suscripcionModal').modal('show');
+		}
+	}
+
+	async function loadTenantsForSelect() {
+		try {
+			const data = await fetchJson(api.tenants);
+			const select = document.getElementById('suscripcion-tenant');
+			if (!select) return;
+
+			select.innerHTML = '<option value="">-- Seleccione un tenant --</option>';
+			(data.data || []).forEach(t => {
+				const option = document.createElement('option');
+				option.value = t.id;
+				option.textContent = `${t.nombre} (${t.slug})`;
+				select.appendChild(option);
+			});
+		} catch (err) {
+			console.error('Error cargando tenants:', err);
+		}
+	}
+
+	async function loadPlanesForSelect(selectId) {
+		try {
+			const data = await fetchJson(api.planes);
+			const select = document.getElementById(selectId);
+			if (!select) return;
+
+			select.innerHTML = '<option value="">-- Seleccione un plan --</option>';
+			(data.data || []).forEach(p => {
+				const option = document.createElement('option');
+				option.value = p.id;
+				option.textContent = `${p.nombre} - $${parseFloat(p.precio_mensual || 0).toFixed(2)}/mes`;
+				select.appendChild(option);
+			});
+		} catch (err) {
+			console.error('Error cargando planes:', err);
+		}
+	}
+
+	async function createSuscripcion(payload) {
+		const data = await postForm(api.suscripcion_create, payload);
+		if (!data.ok) throw new Error(data.msg || 'Error creando suscripción');
+		showAlert(data.msg || 'Suscripción creada correctamente', 'success');
+		fetchSuscripciones();
+	}
+
+	async function updateSuscripcion(id, payload) {
+		const data = await postForm(api.suscripcion_update(id), payload);
+		if (!data.ok) throw new Error(data.msg || 'Error actualizando suscripción');
+		showAlert(data.msg || 'Suscripción actualizada correctamente', 'success');
+		fetchSuscripciones();
+	}
+
+	async function onSuscripcionEdit(e) {
+		const id = e.currentTarget.getAttribute('data-id');
+		try {
+			const data = await fetchJson(api.suscripciones);
+			const suscripcion = (data.data || []).find(s => String(s.id) === String(id));
+			if (!suscripcion) return showAlert('Suscripción no encontrada', 'error');
+			openSuscripcionModal(suscripcion);
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
+	}
+
+	async function onSuscripcionDelete(e) {
+		const id = e.currentTarget.getAttribute('data-id');
+		const confirmed = await confirmAction(
+			'¿Está seguro que desea eliminar esta suscripción?<br><small class="text-danger">Esta acción no se puede deshacer.</small>',
+			'Eliminar Suscripción'
+		);
+		if (!confirmed) return;
+
+		try {
+			const data = await postForm(api.suscripcion_delete(id), {});
+			if (!data.ok) throw new Error(data.msg || 'Error eliminando suscripción');
+			showAlert(data.msg || 'Suscripción eliminada correctamente', 'success');
+			fetchSuscripciones();
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
+	}
+
+	async function onSuscripcionHistorico(e) {
+		const tenantId = e.currentTarget.getAttribute('data-tenant');
+		try {
+			const data = await fetchJson(api.tenant_suscripciones(tenantId));
+			if (!data.ok) throw new Error('Error cargando histórico');
+
+			renderHistoricoSuscripciones(data.data || [], data.tenant);
+
+			if (window.jQuery && $('#historicoModal').modal) {
+				$('#historicoModal').modal('show');
+			}
+		} catch (err) {
+			showAlert(err.message, 'error');
+		}
+	}
+
+	function renderHistoricoSuscripciones(rows, tenant) {
+		const infoDiv = document.getElementById('historico-tenant-info');
+		const tbody = document.getElementById('historico-tbody');
+
+		if (!infoDiv || !tbody) return;
+
+		// Información del tenant
+		if (tenant) {
+			infoDiv.innerHTML = `
+				<div class="alert alert-info">
+					<h6 class="mb-1"><strong>${escapeHtml(tenant.nombre)}</strong></h6>
+					<small>Slug: <code>${escapeHtml(tenant.slug)}</code> | Estado: ${tenant.activo ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-secondary">Inactivo</span>'}</small>
+				</div>
+			`;
+		}
+
+		// Tabla de suscripciones
+		tbody.innerHTML = '';
+		if (rows.length === 0) {
+			tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay suscripciones registradas para este tenant</td></tr>';
+			return;
+		}
+
+		rows.forEach(r => {
+			const badgeClass = r.estatus === 'activa' ? 'success' :
+				r.estatus === 'pendiente' ? 'warning' : 'danger';
+
+			const tr = document.createElement('tr');
+			tr.innerHTML = `
+				<td>${r.id}</td>
+				<td>${escapeHtml(r.plan_nombre || '-')}</td>
+				<td>${formatDate(r.inicio)}</td>
+				<td>${formatDate(r.fin)}</td>
+				<td><span class="badge badge-${badgeClass}">${ucfirst(r.estatus)}</span></td>
+				<td>$${parseFloat(r.precio_mensual || 0).toFixed(2)}</td>
+			`;
+			tbody.appendChild(tr);
+		});
+	}
+
+	// Funciones auxiliares
+	function formatDate(dateStr) {
+		if (!dateStr) return '-';
+		const d = new Date(dateStr);
+		const day = String(d.getDate()).padStart(2, '0');
+		const month = String(d.getMonth() + 1).padStart(2, '0');
+		const year = d.getFullYear();
+		return `${day}/${month}/${year}`;
+	}
+
+	function ucfirst(str) {
+		if (!str) return '';
+		return str.charAt(0).toUpperCase() + str.slice(1);
+	}
+
+	// ===== EVENT LISTENERS =====
+
+	// Event listeners para pagos
+	document.addEventListener('DOMContentLoaded', function () {
+		// Formulario de filtros de pagos
+		const filtrosForm = document.getElementById('filtros-form');
+		if (filtrosForm) {
+			filtrosForm.addEventListener('submit', aplicarFiltrosPagos);
+		}
+
+		// Botón limpiar filtros
+		const btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
+		if (btnLimpiarFiltros) {
+			btnLimpiarFiltros.addEventListener('click', limpiarFiltrosPagos);
+		}
+
+		// Botón exportar pagos
+		const btnExportPagos = document.getElementById('btn-export-pagos');
+		if (btnExportPagos) {
+			btnExportPagos.addEventListener('click', function (e) {
+				e.preventDefault();
+				if (window.jQuery && $('#exportPagosModal').modal) {
+					$('#exportPagosModal').modal('show');
+				}
+			});
+		}
+
+		// Formulario de exportación
+		const exportForm = document.getElementById('export-pagos-form');
+		if (exportForm) {
+			exportForm.addEventListener('submit', exportarPagos);
+		}
+
+		// Botón refresh dashboard
+		const btnRefreshDashboard = document.getElementById('btn-refresh-dashboard');
+		if (btnRefreshDashboard) {
+			btnRefreshDashboard.addEventListener('click', function (e) {
+				e.preventDefault();
+				fetchDashboardStats().catch(err => showAlert(err.message, 'error'));
+			});
+		}
+	});
 
 	// Expose init
 	document.addEventListener('DOMContentLoaded', initAdmin);

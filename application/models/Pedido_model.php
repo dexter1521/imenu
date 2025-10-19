@@ -296,5 +296,46 @@ class Pedido_model extends CI_Model
 	{
 		return $this->db->get('pedidos')->result();
 	}
-}
 
+	/**
+	 * Obtener estadísticas globales de pedidos para dashboard admin
+	 * @return array
+	 */
+	public function get_global_stats()
+	{
+		// Total de pedidos en el sistema
+		$total = $this->db->count_all('pedidos');
+
+		// Pedidos del mes actual
+		$this->db->where('MONTH(creado_en)', date('m'));
+		$this->db->where('YEAR(creado_en)', date('Y'));
+		$mes_actual = $this->db->count_all_results('pedidos');
+
+		// Pedidos por estado
+		$this->db->select('estado, COUNT(*) as cantidad');
+		$this->db->group_by('estado');
+		$por_estado = $this->db->get('pedidos')->result();
+
+		// Convertir a array asociativo
+		$estados = [];
+		foreach ($por_estado as $item) {
+			$estados[$item->estado] = (int)$item->cantidad;
+		}
+
+		// Pedidos últimos 7 días
+		$this->db->where('creado_en >=', date('Y-m-d', strtotime('-7 days')));
+		$ultima_semana = $this->db->count_all_results('pedidos');
+
+		// Promedio de pedidos por día del mes
+		$dia_actual = (int)date('d');
+		$promedio_diario = $dia_actual > 0 ? $mes_actual / $dia_actual : 0;
+
+		return [
+			'total' => $total,
+			'mes_actual' => $mes_actual,
+			'ultima_semana' => $ultima_semana,
+			'por_estado' => $estados,
+			'promedio_diario' => round($promedio_diario, 1)
+		];
+	}
+}
