@@ -348,11 +348,6 @@ class App extends MY_Controller
 	{
 		header('Content-Type: application/json');
 
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
-
 		$tid = current_tenant_id();
 		$this->load->model('Pedido_model');
 
@@ -406,11 +401,6 @@ class App extends MY_Controller
 	public function pedido_create()
 	{
 		header('Content-Type: application/json');
-
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
 
 		// Verificar método HTTP
 		if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -485,11 +475,6 @@ class App extends MY_Controller
 	{
 		header('Content-Type: application/json');
 
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
-
 		$tid = current_tenant_id();
 		$this->load->model('Pedido_model');
 		$row = $this->Pedido_model->get_with_items($tid, (int)$id);
@@ -510,11 +495,6 @@ class App extends MY_Controller
 	public function pedido_update_estado($id)
 	{
 		header('Content-Type: application/json');
-
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
 
 		// Verificar método HTTP
 		if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -555,11 +535,6 @@ class App extends MY_Controller
 	public function pedido_delete($id)
 	{
 		header('Content-Type: application/json');
-
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
 
 		// Verificar método HTTP
 		if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'DELETE') {
@@ -603,11 +578,7 @@ class App extends MY_Controller
 	{
 		header('Content-Type: application/json');
 
-		// Verificar autenticación y permisos de owner
-		if (!$this->_verify_auth()) {
-			return;
-		}
-
+		// Verificar permisos de owner
 		if (current_role() !== 'owner') {
 			$this->_api_error(403, 'Solo el owner puede configurar notificaciones');
 			return;
@@ -672,11 +643,6 @@ class App extends MY_Controller
 
 	public function pedidos_export()
 	{
-		// Verificar autenticación
-		if (!$this->_verify_auth()) {
-			return;
-		}
-
 		$tid = current_tenant_id();
 		$formato = $this->input->get('formato', true) ?: 'csv';
 

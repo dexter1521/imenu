@@ -9,13 +9,30 @@ class AuthHook
 {
 	public function check_access()
 	{
+		// Obtener la instancia de CodeIgniter
 		$CI = &get_instance();
+		
+		// Verificar que CI esté inicializado
+		if (!$CI) {
+			return; // CI no está listo todavía
+		}
+		
+		// Cargar el router si no está cargado
+		if (!isset($CI->router)) {
+			$CI->load->library('router');
+		}
+		
+		// Verificar que el router esté disponible
+		if (!isset($CI->router)) {
+			return; // Router no disponible, permitir continuar
+		}
+		
 		$router = $CI->router;
 		$class  = strtolower($router->fetch_class());
 		$method = strtolower($router->fetch_method());
 
 		// Rutas públicas que no requieren autenticación
-		$public_controllers = ['publicuser', 'tenantauth', 'adminauth'];
+		$public_controllers = ['publicuser', 'tenantauth', 'adminauth', 'adminpanel'];
 		$public_methods     = ['login', 'register', 'forgot_password', 'api_menu'];
 
 		if (in_array($class, $public_controllers) || in_array($method, $public_methods)) {

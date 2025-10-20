@@ -19,7 +19,7 @@ class JWT
 
 	public function __construct()
 	{
-		$this->secret_key = 'CHANGE_ME_SUPER_SECRET_32CHARS_MINIMO'; // Cambiar por un valor seguro
+		$this->secret_key = 'ingDLMRuGe9UKHRNjs7cYckS2yul4lc3'; // Cambiar por un valor seguro
 	}
 
 	public function encode($payload)

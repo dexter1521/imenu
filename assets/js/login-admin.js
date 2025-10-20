@@ -114,41 +114,14 @@
 			localStorage.setItem('imenu_role', data.rol || '');
 			localStorage.setItem('imenu_tenant', data.tenant_id !== undefined ? String(data.tenant_id) : '0');
 
-			// Verificación opcional: probar el token con un endpoint API usando Authorization: Bearer
-			const apiTenants = window.IMENU && window.IMENU.api && window.IMENU.api.tenants ? window.IMENU.api.tenants : null;
-			if (apiTenants && data.token) {
-				try {
-					const check = await fetch(apiTenants, {
-						method: 'GET',
-						headers: {
-							'Authorization': 'Bearer ' + data.token,
-							'Accept': 'application/json'
-						},
-						credentials: 'same-origin'
-					});
-					const txt = await check.text();
-					let j = {};
-					try { j = txt ? JSON.parse(txt) : {}; } catch (e) { /* ignore */ }
-					if (check.ok && j.ok) {
-						// OK — redirigir
-						const adminUrl = (window.IMENU && window.IMENU.routes && window.IMENU.routes.admin) ? window.IMENU.routes.admin : (window.location.origin + '/admin');
-						window.location.href = adminUrl;
-						return;
-					} else {
-						showAlert(j.msg || 'Token inválido o sin permisos');
-						btn.disabled = false;
-						return;
-					}
-				} catch (e) {
-					console.error('Error verificando token con API:', e);
-					showAlert('No se pudo verificar token. Revisa la consola.');
-					btn.disabled = false;
-					return;
-				}
-			} else {
-				const adminUrl = (window.IMENU && window.IMENU.routes && window.IMENU.routes.admin) ? window.IMENU.routes.admin : (window.location.origin + '/admin');
+			// Esperar un momento para que la cookie se establezca correctamente
+			// antes de redirigir
+			setTimeout(() => {
+				const adminUrl = (window.IMENU && window.IMENU.routes && window.IMENU.routes.admin)
+					? window.IMENU.routes.admin
+					: (window.location.origin + '/admin/dashboard');
 				window.location.href = adminUrl;
-			}
+			}, 100); // 100ms es suficiente para que el navegador procese la cookie
 
 		} catch (err) {
 			console.error(err);

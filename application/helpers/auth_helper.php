@@ -4,7 +4,7 @@ if (!function_exists('jwt_secret')) {
 	function jwt_secret()
 	{
 		// Cambia a un valor largo aleatorio y guarda en .env/config
-		return 'CHANGE_ME_SUPER_SECRET_32CHARS_MINIMO';
+		return 'ingDLMRuGe9UKHRNjs7cYckS2yul4lc3';
 	}
 }
 
@@ -93,26 +93,32 @@ if (!function_exists('jwt_require')) {
 			echo json_encode(['ok' => false, 'msg' => 'Falta Bearer token']);
 			exit;
 		}
+
+		// Guardar referencia a la librería JWT antes de sobrescribirla
+		$jwt_lib = $CI->jwt;
+
 		try {
-			if (isset($CI->jwt) && method_exists($CI->jwt, 'decode')) {
-				$payload = $CI->jwt->decode($token);
-			} else {
-				$payload = \Firebase\JWT\JWT::decode($token, jwt_secret(), ['HS256']);
-			}
+			// Usar la librería JWT para decodificar
+			$payload = $jwt_lib->decode($token);
+			// Convertir a array para facilitar el acceso
+			$payload = json_decode(json_encode($payload), true);
 		} catch (Exception $e) {
 			http_response_code(401);
 			echo json_encode(['ok' => false, 'msg' => $e->getMessage()]);
 			exit;
 		}
+
 		if ($roles) {
 			$roles = is_array($roles) ? $roles : [$roles];
-			if (!in_array($payload['rol'], $roles)) {
+			if (!isset($payload['rol']) || !in_array($payload['rol'], $roles)) {
 				http_response_code(403);
 				echo json_encode(['ok' => false, 'msg' => 'Rol no autorizado']);
 				exit;
 			}
 		}
-		$CI->jwt = (object)$payload; // disponible en controladores
+
+		// Convertir a objeto y sobrescribir $CI->jwt con el payload
+		$CI->jwt = (object)$payload;
 	}
 }
 

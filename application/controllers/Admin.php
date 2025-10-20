@@ -10,13 +10,32 @@ class Admin extends MY_Controller
 {
 	public function __construct()
 	{
-		// NOTA: He añadido los modelos necesarios para las nuevas funcionalidades.
 		parent::__construct();
 		$this->load->database();
 		$this->load->helper('auth');
 
-		// Verificar que el usuario tenga rol de admin antes de continuar
-		if (!isset($this->jwt->rol) || $this->jwt->rol !== 'admin') {
+		// Validar JWT directamente (no depender de AuthHook)
+		try {
+			jwt_require(); // Esto establece $this->jwt
+		} catch (Exception $e) {
+			// JWT inválido o no existe
+			if ($this->input->is_ajax_request()) {
+				$this->output
+					->set_status_header(401)
+					->set_content_type('application/json')
+					->set_output(json_encode(['ok' => false, 'msg' => 'No autenticado']))
+					->_display();
+				exit;
+			} else {
+				redirect('/adminpanel/login?expired=1');
+				exit;
+			}
+		}
+		
+		// Verificar que el usuario tenga rol de admin
+		$rol = current_role();
+		
+		if ($rol !== 'admin') {
 			if ($this->input->is_ajax_request()) {
 				$this->_api_error(403, 'Acceso denegado: se requiere rol de administrador');
 			} else {
@@ -25,9 +44,7 @@ class Admin extends MY_Controller
 			exit;
 		}
 
-		// Configurar vistas permitidas en el constructor
-		$this->allowed_views = ['dashboard', 'tenants_view', 'planes_view', 'pagos_view', 'suscripciones_view'];
-		$this->validate_view_access();
+		// Cargar modelos necesarios
 		$this->load->model('Tenant_model', 'tenant_model');
 		$this->load->model('Plan_model', 'plan_model');
 		$this->load->model('Suscripcion_model', 'suscripcion_model');

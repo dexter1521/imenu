@@ -101,8 +101,8 @@
 		window.IMENU = window.IMENU || {};
 		window.IMENU.routes = {
 			login: '<?php echo site_url('adminauth/login'); ?>',
-			// Redirigimos al listado principal del admin (tenants_view) para evitar 404 en /admin
-			admin: '<?php echo site_url('admin/tenants_view'); ?>'
+			// Redirigir al dashboard principal del admin
+			admin: '<?php echo site_url('admin/dashboard'); ?>'
 		};
 		// Endpoints API útiles para verificaciones desde JS
 		window.IMENU.api = window.IMENU.api || {};
