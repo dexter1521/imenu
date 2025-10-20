@@ -1,6 +1,19 @@
 // Tenant login script: hace POST a /tenantauth/login, guarda metadatos y redirige al panel del tenant.
 (function () {
 	'use strict';
+
+	// ============================================
+	// LIMPIEZA PREVENTIVA AL CARGAR LA PÁGINA
+	// ============================================
+	// Limpiar localStorage para evitar conflictos
+	localStorage.removeItem('imenu_role');
+	localStorage.removeItem('imenu_tenant');
+
+	// Intentar limpiar cookie imenu_token (aunque es HttpOnly, intentamos por si acaso)
+	document.cookie = 'imenu_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+	// ============================================
+
 	const form = document.getElementById('tenant-login-form');
 	if (!form) return;
 
@@ -8,11 +21,12 @@
 	const alertBox = document.getElementById('login-alert');
 
 	function showAlert(message, type = 'danger') {
+		// use SweetAlert2 if available
 		if (window.Swal) {
 			Swal.fire({
-				title: type === 'danger' ? 'Error' : 'Atención',
+				title: type === 'warning' ? 'Atención' : (type === 'danger' ? 'Error' : 'Información'),
 				text: message,
-				icon: type === 'danger' ? 'error' : 'warning',
+				icon: type === 'danger' ? 'error' : (type === 'warning' ? 'warning' : 'info'),
 				confirmButtonText: 'OK'
 			});
 			return;
@@ -24,6 +38,8 @@
 
 	function clearAlert() {
 		alertBox.style.display = 'none';
+		alertBox.className = '';
+		alertBox.textContent = '';
 	}
 
 	// Mensaje de sesión expirada
@@ -57,6 +73,19 @@
 			const loginUrl = window.IMENU.routes.login;
 			const params = new URLSearchParams({ email, password });
 
+			// Adjuntar token CSRF si está disponible
+			if (window.IMENU && window.IMENU.csrf && window.IMENU.csrf.name) {
+				const cookieName = window.IMENU.csrf.cookie_name || null;
+				let csrfValue = window.IMENU.csrf.hash || '';
+				if (cookieName) {
+					try {
+						const match = document.cookie.match(new RegExp('(^|; )' + cookieName.replace(/([.*+?^${}()|[\]\\])/g, '\\$1') + '=([^;]*)'));
+						if (match) csrfValue = decodeURIComponent(match[2]);
+					} catch (e) { /* ignore */ }
+				}
+				params.append(window.IMENU.csrf.name, csrfValue);
+			}
+
 			const resp = await fetch(loginUrl, {
 				method: 'POST',
 				credentials: 'same-origin',
@@ -83,14 +112,16 @@
 				return;
 			}
 
-			// Guardar metadatos en localStorage
-			localStorage.setItem('imenu_role', data.rol || '');
-			localStorage.setItem('imenu_tenant', data.tenant_id !== undefined ? String(data.tenant_id) : '0');
+		// Guardar metadatos en localStorage
+		localStorage.setItem('imenu_role', data.rol || '');
+		localStorage.setItem('imenu_tenant', data.tenant_id !== undefined ? String(data.tenant_id) : '0');
 
-			// Redirigir al dashboard del tenant
+		// Dar tiempo al navegador para procesar la cookie antes de redirigir
+		setTimeout(() => {
 			window.location.href = window.IMENU.routes.dashboard;
+		}, 100);
 
-		} catch (err) {
+	} catch (err) {
 			console.error(err);
 			showAlert('Error de red o de conexión. Intenta de nuevo.');
 			btn.disabled = false;

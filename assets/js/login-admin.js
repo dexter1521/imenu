@@ -2,6 +2,20 @@
 
 (async function () {
 	'use strict';
+
+	// ============================================
+	// LIMPIEZA PREVENTIVA AL CARGAR LA PÁGINA
+	// ============================================
+	// Limpiar localStorage para evitar conflictos
+	localStorage.removeItem('imenu_role');
+	localStorage.removeItem('imenu_tenant');
+
+	// Intentar limpiar cookie imenu_token (aunque es HttpOnly, intentamos por si acaso)
+	// Nota: Las cookies HttpOnly solo pueden ser eliminadas por el servidor
+	document.cookie = 'imenu_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+	// ============================================
+
 	const form = document.getElementById('admin-login-form');
 	if (!form) return;
 

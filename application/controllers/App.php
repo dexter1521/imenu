@@ -8,15 +8,56 @@ class App extends MY_Controller
 		$this->load->database();
 		$this->load->helper('auth');
 
+		// Obtener el método que se está ejecutando
+		$method = $this->router->fetch_method();
+
+		// Métodos públicos que no requieren autenticación
+		$public_methods = ['login'];
+
+		// Si es un método público, no validar JWT
+		if (in_array($method, $public_methods)) {
+			return;
+		}
+
+		// Validar JWT directamente para métodos protegidos
+		try {
+			jwt_require(); // Esto establece $this->jwt
+		} catch (Exception $e) {
+			// JWT inválido o no existe
+			if ($this->input->is_ajax_request()) {
+				$this->output
+					->set_status_header(401)
+					->set_content_type('application/json')
+					->set_output(json_encode(['ok' => false, 'msg' => 'No autenticado']))
+					->_display();
+				exit;
+			} else {
+				redirect('/app/login?expired=1');
+				exit;
+			}
+		}
+
+		// Verificar que el usuario tenga un tenant_id válido
+		$tenant_id = current_tenant_id();
+		if (!$tenant_id) {
+			if ($this->input->is_ajax_request()) {
+				$this->output
+					->set_status_header(403)
+					->set_content_type('application/json')
+					->set_output(json_encode(['ok' => false, 'msg' => 'Sin tenant asociado']))
+					->_display();
+				exit;
+			} else {
+				redirect('/app/login?expired=1');
+				exit;
+			}
+		}
+
 		// Cargar modelos necesarios con alias en minúsculas
 		$this->load->model('Categoria_model', 'categoria_model');
 		$this->load->model('Producto_model', 'producto_model');
 		$this->load->model('Ajustes_model', 'ajustes_model');
 		$this->load->model('Tenant_model', 'tenant_model');
-
-		// Configurar vistas permitidas en el constructor
-		$this->allowed_views = ['dashboard_view', 'categorias_view', 'productos_view', 'ajustes_view'];
-		$this->validate_view_access();
 	}
 
 	/**

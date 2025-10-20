@@ -1,11 +1,5 @@
-<?php defined('BASEPATH') or exit('No direct script access allowed');
+﻿<?php defined('BASEPATH') or exit('No direct script access allowed');
 
-/**
- * @property CI_DB $db
- * @property CI_Input $input
- * @property CI_Output $output
- * @property User_model $user_model
- */
 class TenantAuth extends CI_Controller
 {
 	public function __construct()
@@ -20,24 +14,22 @@ class TenantAuth extends CI_Controller
 		try {
 			$email = $this->input->post('email');
 			$pass  = $this->input->post('password');
-			
+
 			if (!$email || !$pass) {
 				return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'msg' => 'email/password requeridos']));
 			}
-			
-			// Buscar usuario por email
+
 			$u = $this->user_model->get_by_email($email);
-			
+
 			if (!$u || !$this->user_model->verify_password($pass, $u->password)) {
 				return $this->output->set_status_header(401)->set_output(json_encode(['ok' => false, 'msg' => 'Credenciales inválidas']));
 			}
-			
-			// No permitir login de admin por este endpoint de tenant
-			if (isset($u->rol) && $u->rol === 'admin') {
+
+			if (isset($u->rol) && trim($u->rol) === 'admin') {
 				return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'msg' => 'Use el login de administrador']));
 			}
 
-			$token = jwt_issue($u->id, (int)$u->tenant_id, $u->rol, 60 * 60 * 8); // 8h
+			$token = jwt_issue($u->id, (int)$u->tenant_id, $u->rol, 60 * 60 * 8);
 			$expire = time() + 60 * 60 * 8;
 			$cookie_name = 'imenu_token';
 			$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
@@ -47,12 +39,11 @@ class TenantAuth extends CI_Controller
 			if ($secure) $cookie_header .= '; Secure';
 			header('Set-Cookie: ' . $cookie_header);
 
-			// Retornar token en respuesta para compatibilidad con JavaScript
 			return $this->output->set_output(json_encode([
 				'ok' => true,
 				'rol' => $u->rol,
 				'tenant_id' => (int)$u->tenant_id,
-				'token' => $token // Agregar el token en la respuesta
+				'token' => $token
 			]));
 		} catch (Exception $e) {
 			$this->output->set_status_header(500);
@@ -62,8 +53,11 @@ class TenantAuth extends CI_Controller
 
 	public function logout()
 	{
-		setcookie('imenu_token', '', time() - 3600, '/');
-		header('Set-Cookie: imenu_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; SameSite=Strict');
+		setcookie('imenu_token', '', time() - 3600, '/', '', false, true);
+		header('Set-Cookie: imenu_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; SameSite=Strict', false);
+		if (isset($_COOKIE['imenu_token'])) {
+			unset($_COOKIE['imenu_token']);
+		}
 		return $this->output->set_output(json_encode(['ok' => true, 'msg' => 'Sesión cerrada']));
 	}
 }

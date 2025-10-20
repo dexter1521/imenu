@@ -76,6 +76,13 @@
 			login: '<?php echo site_url('tenantauth/login'); ?>',
 			dashboard: '<?php echo site_url('app/dashboard_view'); ?>'
 		};
+
+		// Configurar CSRF token para el formulario de login
+		window.IMENU.csrf = {
+			name: '<?php echo $this->security->get_csrf_token_name(); ?>',
+			hash: '<?php echo $this->security->get_csrf_hash(); ?>',
+			cookie_name: '<?php echo $this->config->item('csrf_cookie_name'); ?>'
+		};
 	</script>
 	<script src="<?php echo base_url('assets/js/login-tenant.js'); ?>"></script>
 

@@ -63,9 +63,18 @@ class AdminAuth extends CI_Controller
 
 	public function logout()
 	{
-		// Para logout: eliminar cookie
-		setcookie('imenu_token', '', time() - 3600, '/');
-		header('Set-Cookie: imenu_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; SameSite=Strict');
+		// Eliminar cookie de múltiples formas para asegurar que se borre
+		// Método 1: setcookie de PHP
+		setcookie('imenu_token', '', time() - 3600, '/', '', false, true);
+
+		// Método 2: Header directo
+		header('Set-Cookie: imenu_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; SameSite=Strict', false);
+
+		// Método 3: Unset de la cookie en $_COOKIE para esta request
+		if (isset($_COOKIE['imenu_token'])) {
+			unset($_COOKIE['imenu_token']);
+		}
+
 		return $this->output->set_output(json_encode(['ok' => true, 'msg' => 'Sesión admin cerrada']));
 	}
 }

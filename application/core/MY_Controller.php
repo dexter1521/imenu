@@ -4,20 +4,22 @@
  * Class MY_Controller
  * Controlador base centralizado para iMenu
  *
- * - Valida sesión automáticamente.
- * - Centraliza el renderizado de vistas.
- * - Proporciona métodos para validar tenant y permisos.
- * - Funciona con autenticación basada en sesiones (no JWT).
+ * - Proporciona métodos auxiliares para renderizado de vistas.
+ * - Centraliza datos comunes para todas las vistas.
+ * - NO valida autenticación (delegada a AuthHook).
+ * - Asume que AuthHook ya validó el JWT y lo dejó disponible en $CI->jwt.
  */
 
 /**
  * Class MY_Controller
  *
- * @property CI_Session $session
  * @property CI_Loader $load
  * @property CI_DB_query_builder $db
  * @property CI_Input $input
  * @property CI_Output $output
+ * @property CI_URI $uri
+ * @property CI_Router $router
+ * @property object $jwt Payload del JWT decodificado (disponible después de AuthHook)
  */
 
 class MY_Controller extends CI_Controller
@@ -38,79 +40,31 @@ class MY_Controller extends CI_Controller
 	{
 		parent::__construct();
 
-		// Métodos que no requieren autenticación (por ejemplo login)
-		$excluded_methods = ['login', 'do_login', 'forgot_password'];
-
-		$current_method = $this->router->fetch_method();
-		if (!in_array($current_method, $excluded_methods)) {
-			if (!$this->_verify_auth()) {
-				exit;
-			}
-		}
-
-		// Datos comunes para todas las vistas
-		$this->data['page_title'] = 'iMenu';
-		
-		// Si hay JWT válido, extraer datos del usuario
-		if (isset($this->jwt)) {
-			$this->data['user_name'] = $this->jwt->nombre ?? 'Usuario';
-			$this->data['user_role'] = $this->jwt->rol ?? null;
-			$this->data['tenant_id'] = $this->jwt->tenant_id ?? null;
-		} else {
-			$this->data['user_name'] = 'Usuario';
-			$this->data['user_role'] = null;
-			$this->data['tenant_id'] = null;
-		}
+		// Inicializar datos comunes para todas las vistas
+		$this->_init_common_data();
 	}
 
 	/**
-	 * Verifica que el usuario esté autenticado mediante JWT
+	 * Inicializa datos comunes disponibles en todas las vistas
+	 * Asume que AuthHook ya validó el JWT y está disponible en $this->jwt
 	 */
-	protected function _verify_auth()
+	protected function _init_common_data()
 	{
-		// Verificar si existe JWT válido
-		if (!is_authenticated()) {
-			if ($this->input->is_ajax_request()) {
-				return $this->_api_error(401, 'Sesión no válida o expirada');
-			} else {
-				// Redirección inteligente según el tipo de panel
-				$class = $this->router->fetch_class();
-				if ($class === 'admin') {
-					// Si es el panel de admin SaaS, redirigir a su login
-					redirect('/adminpanel/login?expired=1');
-				} else {
-					// Para el resto (panel de tenant), redirigir al login de la app
-					redirect('/app/login?expired=1');
-				}
-				return false;
-			}
+		$this->data['page_title'] = 'iMenu';
+
+		// Si AuthHook ya validó y dejó el JWT disponible, extraer datos del usuario
+		if (isset($this->jwt) && is_object($this->jwt)) {
+			$this->data['user_name'] = $this->jwt->nombre ?? 'Usuario';
+			$this->data['user_role'] = $this->jwt->rol ?? null;
+			$this->data['tenant_id'] = $this->jwt->tenant_id ?? null;
+			$this->data['user_id'] = $this->jwt->sub ?? null;
+		} else {
+			// Fallback para rutas públicas que no requieren auth
+			$this->data['user_name'] = 'Invitado';
+			$this->data['user_role'] = null;
+			$this->data['tenant_id'] = null;
+			$this->data['user_id'] = null;
 		}
-
-		// Decodificar el JWT y almacenar en $this->jwt para acceso en el controlador
-		$payload = jwt_decode_from_cookie();
-		if (!$payload) {
-			if ($this->input->is_ajax_request()) {
-				return $this->_api_error(401, 'Token inválido');
-			} else {
-				$class = $this->router->fetch_class();
-				if ($class === 'admin') {
-					redirect('/adminpanel/login?expired=1');
-				} else {
-					redirect('/app/login?expired=1');
-				}
-				return false;
-			}
-		}
-
-		// Almacenar el payload en $this->jwt para que esté disponible en los controladores
-		$this->jwt = (object)$payload;
-
-		// Validar tenant_id (excepto para rol admin que puede no tener tenant específico)
-		if (!isset($payload['tenant_id']) && (!isset($payload['rol']) || $payload['rol'] !== 'admin')) {
-			return $this->_api_error(403, 'Acceso no autorizado: tenant no encontrado');
-		}
-
-		return true;
 	}
 
 	/**
@@ -150,6 +104,10 @@ class MY_Controller extends CI_Controller
 		}
 
 		$data = array_merge($this->data, $data);
+
+		// Agregar URL de logout para admin
+		$data['logout_url'] = site_url('adminauth/logout');
+
 		$this->load->view('template/header', $data);
 		$this->load->view('template/sidebar_admin', $data);
 		$this->load->view('template/topbar', $data);
@@ -176,48 +134,85 @@ class MY_Controller extends CI_Controller
 	}
 
 	/**
+	 * Devuelve respuesta de éxito en formato JSON
+	 * @param mixed $data Datos a retornar
+	 * @param string $message Mensaje opcional
+	 */
+	protected function _api_success($data = null, $message = 'OK')
+	{
+		$this->output
+			->set_status_header(200)
+			->set_content_type('application/json')
+			->set_output(json_encode([
+				'success' => true,
+				'message' => $message,
+				'data' => $data
+			]));
+	}
+
+	/**
 	 * Devuelve error en formato API JSON
+	 * @param int $code Código HTTP
+	 * @param string $message Mensaje de error
 	 */
 	protected function _api_error($code, $message)
 	{
-		http_response_code($code);
-		echo json_encode(['ok' => false, 'msg' => $message]);
-		exit;
+		$this->output
+			->set_status_header($code)
+			->set_content_type('application/json')
+			->set_output(json_encode([
+				'success' => false,
+				'message' => $message
+			]));
 	}
 
 	/**
 	 * Valida si el recurso pertenece al tenant actual
+	 * @param int $resource_tenant_id ID del tenant dueño del recurso
+	 * @return bool
 	 */
 	protected function _validate_tenant_access($resource_tenant_id)
 	{
-		// Obtener el tenant_id actual del JWT
+		// Obtener el tenant_id actual del JWT (ya validado por AuthHook)
 		$current_tenant = isset($this->jwt->tenant_id) ? (int)$this->jwt->tenant_id : 0;
-		
+
 		// Los administradores SaaS pueden acceder a todos los recursos
 		if (isset($this->jwt->rol) && $this->jwt->rol === 'admin') {
 			return true;
 		}
-		
-		if ($resource_tenant_id != $current_tenant) {
+
+		if ((int)$resource_tenant_id !== $current_tenant) {
 			$this->_api_error(403, 'Acceso denegado al recurso solicitado.');
 			return false;
 		}
+
 		return true;
 	}
 
 	/**
-	 * Valida si el método actual tiene permiso para renderizar la vista
-	 * (Opcional para control granular de vistas)
+	 * Obtiene el ID del usuario actual desde el JWT
+	 * @return int
 	 */
-	protected function validate_view_access()
+	protected function _current_user_id()
 	{
-		$current_method = $this->router->fetch_method();
+		return isset($this->jwt->sub) ? (int)$this->jwt->sub : 0;
+	}
 
-		// Aplica solo a métodos terminados en "_view" para separar API de vistas
-		if (!empty($this->allowed_views) && substr($current_method, -5) === '_view') {
-			if (!in_array($current_method, $this->allowed_views)) {
-				$this->_api_error(403, 'Acceso denegado a la vista: ' . $current_method);
-			}
-		}
+	/**
+	 * Obtiene el ID del tenant actual desde el JWT
+	 * @return int
+	 */
+	protected function _current_tenant_id()
+	{
+		return isset($this->jwt->tenant_id) ? (int)$this->jwt->tenant_id : 0;
+	}
+
+	/**
+	 * Obtiene el rol actual desde el JWT
+	 * @return string|null
+	 */
+	protected function _current_role()
+	{
+		return isset($this->jwt->rol) ? $this->jwt->rol : null;
 	}
 }
