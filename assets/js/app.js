@@ -10,7 +10,7 @@
 	function appUrl(path) {
 		path = path || '';
 		if (path.charAt(0) === '/') path = path.slice(1);
-		return BASE + 'app/' + path;
+		return BASE + 'api/app/' + path;
 	}
 
 	// === CSRF helpers (CodeIgniter 3) ===
@@ -83,7 +83,7 @@
 				orden: payload.orden,
 				activo: payload.activo
 			}, csrfData());
-			const url = id ? appUrl('categoria_update/' + encodeURIComponent(id)) : appUrl('categoria_create');
+			const url = id ? appUrl('categoria/' + encodeURIComponent(id)) : appUrl('categoria');
 			fetch(url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -94,23 +94,23 @@
 					if (callback) callback(null, resp);
 				})
 				.catch(err => {
-					if (callback) callback(err);
+					if (callback) callback(err, null);
 				});
 		},
 
 		remove: function (id, callback) {
 			const data = csrfData();
-			fetch(appUrl('categoria_delete/' + encodeURIComponent(id)), {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: new URLSearchParams(data)
+			const params = new URLSearchParams(data);
+			fetch(appUrl('categoria/' + encodeURIComponent(id)) + '?' + params.toString(), {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' }
 			})
 				.then(res => res.json())
 				.then(resp => {
 					if (callback) callback(null, resp);
 				})
 				.catch(err => {
-					if (callback) callback(err);
+					if (callback) callback(err, null);
 				});
 		},
 
@@ -123,10 +123,8 @@
 					document.querySelector('#cat_nombre').value = '';
 					document.querySelector('#cat_orden').value = '';
 					document.querySelector('#cat_activo').value = '1';
-					if (window.bootstrap && modal) {
-						const bsModal = new bootstrap.Modal(modal);
-						bsModal.show();
-					} else if (window.jQuery && window.jQuery(modal).modal) {
+					// Abrir modal (compatible con Bootstrap 4 jQuery)
+					if (window.jQuery && modal) {
 						window.jQuery(modal).modal('show');
 					}
 				});
@@ -148,13 +146,13 @@
 					Categories.save({ id, nombre, orden, activo }, function (err, resp) {
 						btnSave.disabled = false;
 						btnSave.textContent = 'Guardar';
-						if (err || !resp || !resp.ok) {
+						
+						if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 							showAlert('Error', (resp && resp.msg) || 'Error al guardar', 'error');
 						} else {
+							// Cerrar modal (compatible con Bootstrap 4 jQuery)
 							const modal = document.querySelector('#modalCat');
-							if (window.bootstrap && modal) {
-								bootstrap.Modal.getInstance(modal).hide();
-							} else if (window.jQuery && window.jQuery(modal).modal) {
+							if (window.jQuery && modal) {
 								window.jQuery(modal).modal('hide');
 							}
 							showAlert('Guardado', 'Categoría guardada correctamente', 'success');
@@ -173,11 +171,9 @@
 						document.querySelector('#cat_nombre').value = btn.dataset.nombre;
 						document.querySelector('#cat_orden').value = btn.dataset.orden;
 						document.querySelector('#cat_activo').value = btn.dataset.activo;
+						// Abrir modal (compatible con Bootstrap 4 jQuery)
 						const modal = document.querySelector('#modalCat');
-						if (window.bootstrap && modal) {
-							const bsModal = new bootstrap.Modal(modal);
-							bsModal.show();
-						} else if (window.jQuery && window.jQuery(modal).modal) {
+						if (window.jQuery && modal) {
 							window.jQuery(modal).modal('show');
 						}
 					} else if (e.target.classList.contains('btn-del')) {
@@ -193,7 +189,7 @@
 							}).then(function (result) {
 								if (result.isConfirmed) {
 									Categories.remove(id, function (err, resp) {
-										if (err || !resp || !resp.ok) {
+										if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 											showAlert('Error', (resp && resp.msg) || 'No se pudo eliminar', 'error');
 										} else {
 											showAlert('Eliminado', 'Categoría eliminada', 'success');
@@ -204,7 +200,7 @@
 							});
 						} else if (confirm('¿Eliminar categoría?')) {
 							Categories.remove(id, function (err, resp) {
-								if (err || !resp || !resp.ok) {
+								if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 									alert('No se pudo eliminar');
 								} else {
 									alert('Categoría eliminada');
@@ -287,7 +283,7 @@
 				orden: payload.orden || 0,
 				activo: payload.activo
 			}, csrfData());
-			const url = id ? appUrl('producto_update/' + encodeURIComponent(id)) : appUrl('producto_create');
+			const url = id ? appUrl('producto/' + encodeURIComponent(id)) : appUrl('producto');
 			fetch(url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -298,23 +294,23 @@
 					if (callback) callback(null, resp);
 				})
 				.catch(err => {
-					if (callback) callback(err);
+					if (callback) callback(err, null);
 				});
 		},
 
 		remove: function (id, callback) {
 			const data = csrfData();
-			fetch(appUrl('producto_delete/' + encodeURIComponent(id)), {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: new URLSearchParams(data)
+			const params = new URLSearchParams(data);
+			fetch(appUrl('producto/' + encodeURIComponent(id)) + '?' + params.toString(), {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' }
 			})
 				.then(res => res.json())
 				.then(resp => {
 					if (callback) callback(null, resp);
 				})
 				.catch(err => {
-					if (callback) callback(err);
+					if (callback) callback(err, null);
 				});
 		},
 
@@ -332,11 +328,9 @@
 						preview.src = '';
 					}
 					Products.loadCategories();
+					// Abrir modal (compatible con Bootstrap 4 jQuery)
 					const modal = document.querySelector('#productModal');
-					if (window.bootstrap && modal) {
-						const bsModal = new bootstrap.Modal(modal);
-						bsModal.show();
-					} else if (window.jQuery && window.jQuery(modal).modal) {
+					if (window.jQuery && modal) {
 						window.jQuery(modal).modal('show');
 					}
 				});
@@ -363,13 +357,13 @@
 					Products.save({ id, nombre, descripcion, precio, categoria_id, activo, img_url }, function (err, resp) {
 						btnSave.disabled = false;
 						btnSave.textContent = 'Guardar';
-						if (err || !resp || !resp.ok) {
+						
+						if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 							showAlert('Error', (resp && resp.msg) || 'Error al guardar', 'error');
 						} else {
+							// Cerrar modal (compatible con Bootstrap 4 jQuery)
 							const modal = document.querySelector('#productModal');
-							if (window.bootstrap && modal) {
-								bootstrap.Modal.getInstance(modal).hide();
-							} else if (window.jQuery && window.jQuery(modal).modal) {
+							if (window.jQuery && modal) {
 								window.jQuery(modal).modal('hide');
 							}
 							showAlert('Guardado', 'Producto guardado correctamente', 'success');
@@ -400,11 +394,9 @@
 							preview.style.display = 'none';
 						}
 						Products.loadCategories(btn.dataset.categoria_id);
+						// Abrir modal (compatible con Bootstrap 4 jQuery)
 						const modal = document.querySelector('#productModal');
-						if (window.bootstrap && modal) {
-							const bsModal = new bootstrap.Modal(modal);
-							bsModal.show();
-						} else if (window.jQuery && window.jQuery(modal).modal) {
+						if (window.jQuery && modal) {
 							window.jQuery(modal).modal('show');
 						}
 					} else if (e.target.classList.contains('btn-del-product')) {
@@ -420,7 +412,7 @@
 							}).then(function (result) {
 								if (result.isConfirmed) {
 									Products.remove(id, function (err, resp) {
-										if (err || !resp || !resp.ok) {
+										if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 											showAlert('Error', (resp && resp.msg) || 'No se pudo eliminar', 'error');
 										} else {
 											showAlert('Eliminado', 'Producto eliminado', 'success');
@@ -431,7 +423,7 @@
 							});
 						} else if (confirm('¿Eliminar producto?')) {
 							Products.remove(id, function (err, resp) {
-								if (err || !resp || !resp.ok) {
+								if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 									alert('No se pudo eliminar');
 								} else {
 									alert('Producto eliminado');
