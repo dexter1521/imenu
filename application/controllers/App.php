@@ -58,19 +58,11 @@ class App extends MY_Controller
 		$this->load->model('Producto_model', 'producto_model');
 		$this->load->model('Ajustes_model', 'ajustes_model');
 		$this->load->model('Tenant_model', 'tenant_model');
-	}
-
-	/**
-	 * Muestra la página de login para los tenants.
-	 * Esta ruta está excluida de la verificación de sesión en MY_Controller.
-	 */
-	public function login()
-	{
-		$this->load->view('app/login');
+		$this->load->model('Pedido_model', 'pedido_model');
 	}
 
 	// ===== Vistas del Panel =====
-	public function dashboard_view()
+	public function dashboard()
 	{
 		$this->data['page_title'] = 'Dashboard';
 		$this->render_template('app/dashboard');
@@ -88,20 +80,194 @@ class App extends MY_Controller
 		$this->render_template('app/productos');
 	}
 
+	public function pedidos_view()
+	{
+		$this->data['page_title'] = 'Pedidos';
+		$this->render_template('app/pedidos');
+	}
+
 	public function ajustes_view()
 	{
 		$this->data['page_title'] = 'Ajustes';
 		$this->render_template('app/ajustes');
 	}
 
-	// GET /api/app/dashboard
-	public function dashboard()
+	public function usuarios_view()
+	{
+		$this->data['page_title'] = 'Staff';
+		$this->render_template('app/usuarios');
+	}
+
+	public function plan_view()
+	{
+		$this->data['page_title'] = 'Plan y Suscripción';
+		$this->render_template('app/plan');
+	}
+
+	// ===== Dashboard =====
+	// GET /app/dashboard_data - Estadísticas para el dashboard
+	public function dashboard_data()
 	{
 		$tid = current_tenant_id();
-		$c1 = $this->categoria_model->count_by_tenant($tid);
-		$c2 = $this->producto_model->count_by_tenant($tid);
-		$plan = $this->tenant_model->get_with_plan($tid);
-		echo json_encode(['ok' => true, 'stats' => ['categorias' => $c1, 'productos' => $c2], 'plan' => $plan]);
+
+		// Obtener fechas
+		$hoy = date('Y-m-d');
+		$inicio_hoy = $hoy . ' 00:00:00';
+		$fin_hoy = $hoy . ' 23:59:59';
+
+		// Pedidos de hoy
+		$pedidos_hoy = $this->pedido_model->count_by_tenant($tid, [
+			'fecha_inicio' => $inicio_hoy,
+			'fecha_fin' => $fin_hoy
+		]);
+
+		// Ingresos de hoy
+		$this->db->select('COALESCE(SUM(total), 0) as ingresos');
+		$this->db->where('tenant_id', $tid);
+		$this->db->where('creado_en >=', $inicio_hoy);
+		$this->db->where('creado_en <=', $fin_hoy);
+		$ingresos_hoy = $this->db->get('pedidos')->row()->ingresos;
+
+		// Productos activos
+		$productos_activos = $this->producto_model->count_by_tenant($tid, ['activo' => 1]);
+
+		// Total categorías
+		$total_categorias = $this->categoria_model->count_by_tenant($tid);
+
+		// Información del plan y suscripción
+		$tenant_info = $this->tenant_model->get_with_plan($tid);
+
+		// Calcular días restantes de suscripción
+		$dias_restantes = null;
+		if (!empty($tenant_info->suscripcion_fin)) {
+			$fecha_fin = new DateTime($tenant_info->suscripcion_fin);
+			$fecha_actual = new DateTime();
+			$diferencia = $fecha_actual->diff($fecha_fin);
+			$dias_restantes = $diferencia->invert ? 0 : $diferencia->days;
+		}
+
+		// Pedidos recientes (últimos 5)
+		$pedidos_recientes = $this->pedido_model->list_by_tenant($tid, [
+			'limit' => 5,
+			'order_by' => 'creado_en',
+			'orden' => 'desc'
+		]);
+
+		// Calcular límites usados vs disponibles
+		$limites = [
+			'categorias' => [
+				'usado' => $total_categorias,
+				'limite' => $tenant_info->limite_categorias ?? null
+			],
+			'productos' => [
+				'usado' => $productos_activos,
+				'limite' => $tenant_info->limite_items ?? null
+			]
+		];
+
+		$response = [
+			'ok' => true,
+			'stats' => [
+				'pedidos_hoy' => (int)$pedidos_hoy,
+				'ingresos_hoy' => (float)$ingresos_hoy,
+				'productos_activos' => (int)$productos_activos,
+				'total_categorias' => (int)$total_categorias
+			],
+			'plan' => [
+				'nombre' => $tenant_info->plan_nombre ?? 'Sin plan',
+				'dias_restantes' => $dias_restantes,
+				'suscripcion_activa' => !empty($tenant_info->suscripcion_activa) ? (int)$tenant_info->suscripcion_activa : 0,
+				'limites' => $limites
+			],
+			'pedidos_recientes' => $pedidos_recientes
+		];
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($response));
+	}
+
+	// ===== Plan y Suscripción =====
+	// GET /app/plan_info - Información del plan y uso actual
+	public function plan_info()
+	{
+		$tid = current_tenant_id();
+
+		// Obtener información del tenant con plan
+		$tenant_info = $this->tenant_model->get_with_plan($tid);
+
+		if (!$tenant_info) {
+			$this->output
+				->set_status_header(404)
+				->set_content_type('application/json')
+				->set_output(json_encode(['ok' => false, 'msg' => 'Tenant no encontrado']));
+			return;
+		}
+
+		// Calcular días restantes de suscripción
+		$dias_restantes = null;
+		$fecha_fin = null;
+		if (!empty($tenant_info->suscripcion_fin)) {
+			$fecha_fin = $tenant_info->suscripcion_fin;
+			$fecha_fin_dt = new DateTime($tenant_info->suscripcion_fin);
+			$fecha_actual = new DateTime();
+			$diferencia = $fecha_actual->diff($fecha_fin_dt);
+			$dias_restantes = $diferencia->invert ? 0 : $diferencia->days;
+		}
+
+		// Obtener uso actual
+		$total_categorias = $this->categoria_model->count_by_tenant($tid);
+		$total_productos = $this->producto_model->count_by_tenant($tid);
+		$total_pedidos_mes = $this->pedido_model->count_by_tenant($tid, [
+			'fecha_inicio' => date('Y-m-01 00:00:00'),
+			'fecha_fin' => date('Y-m-t 23:59:59')
+		]);
+
+		// Límites según plan
+		$limites = [
+			'categorias' => $tenant_info->plan_limite_categorias ?? 0,
+			'productos' => $tenant_info->plan_limite_productos ?? 0,
+			'pedidos_mes' => $tenant_info->plan_limite_pedidos_mes ?? 0
+		];
+
+		// Calcular porcentajes de uso
+		$uso_categorias = $limites['categorias'] > 0 
+			? round(($total_categorias / $limites['categorias']) * 100, 1) 
+			: 0;
+		$uso_productos = $limites['productos'] > 0 
+			? round(($total_productos / $limites['productos']) * 100, 1) 
+			: 0;
+		$uso_pedidos = $limites['pedidos_mes'] > 0 
+			? round(($total_pedidos_mes / $limites['pedidos_mes']) * 100, 1) 
+			: 0;
+
+		$response = [
+			'ok' => true,
+			'plan' => [
+				'id' => $tenant_info->plan_id ?? null,
+				'nombre' => $tenant_info->plan_nombre ?? 'Sin plan',
+				'precio' => $tenant_info->plan_precio ?? 0,
+				'descripcion' => $tenant_info->plan_descripcion ?? '',
+				'suscripcion_activa' => !empty($tenant_info->suscripcion_activa) ? 1 : 0,
+				'fecha_fin' => $fecha_fin,
+				'dias_restantes' => $dias_restantes
+			],
+			'limites' => $limites,
+			'uso' => [
+				'categorias' => $total_categorias,
+				'productos' => $total_productos,
+				'pedidos_mes' => $total_pedidos_mes
+			],
+			'porcentajes' => [
+				'categorias' => $uso_categorias,
+				'productos' => $uso_productos,
+				'pedidos_mes' => $uso_pedidos
+			]
+		];
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($response));
 	}
 
 	// ===== Categorías =====
@@ -189,21 +355,134 @@ class App extends MY_Controller
 		echo json_encode(['ok' => true]);
 	}
 
+	/**
+	 * Subir imagen de producto (multipart/form-data)
+	 * Campo esperado: product_image
+	 * Respuesta: { ok: true, url: '.../uploads/tenants/{tid}/productos/filename.ext' }
+	 */
+	public function producto_upload()
+	{
+		$tenant_id = current_tenant_id();
+		$this->output->set_content_type('application/json');
+
+		if (!$tenant_id) {
+			http_response_code(403);
+			echo json_encode(['ok' => false, 'msg' => 'Sin tenant asociado']);
+			return;
+		}
+
+		$upload_path = FCPATH . 'uploads/tenants/' . $tenant_id . '/productos/';
+		if (!is_dir($upload_path)) {
+			@mkdir($upload_path, 0775, true);
+		}
+
+		$config = [
+			'upload_path'   => $upload_path,
+			'allowed_types' => 'jpg|jpeg|png|webp',
+			'file_ext_tolower' => true,
+			'overwrite'     => false,
+			'max_size'      => 5120, // 5 MB
+			'encrypt_name'  => true,
+		];
+
+		$this->load->library('upload', $config);
+
+		$field = 'product_image';
+		if (!$this->upload->do_upload($field)) {
+			$err = strip_tags($this->upload->display_errors('', ''));
+			http_response_code(422);
+			echo json_encode(['ok' => false, 'msg' => $err]);
+			return;
+		}
+
+		$data = $this->upload->data();
+		$url = base_url('uploads/tenants/' . $tenant_id . '/productos/' . $data['file_name']);
+		echo json_encode(['ok' => true, 'url' => $url]);
+	}
+
 	// ===== Ajustes =====
 	public function ajustes_get()
 	{
 		$tid = current_tenant_id();
-		$row = $this->ajustes_model->get_by_tenant($tid);
-		echo json_encode(['ok' => true, 'data' => $row]);
+		
+		try {
+			$row = $this->ajustes_model->get_by_tenant($tid);
+			
+			// Si no hay ajustes, crear valores por defecto
+			if (!$row) {
+				$row = (object)[
+					'nombre_negocio' => '',
+					'telefono' => '',
+					'email' => '',
+					'direccion' => '',
+					'color_primario' => '#F50087',
+					'mostrar_precios' => 1,
+					'mostrar_imagenes' => 1,
+					'aceptar_pedidos' => 1,
+					'idioma' => 'es',
+					'moneda' => 'MXN',
+					'formato_precio' => '$0.00',
+					'zona_horaria' => 'America/Mexico_City',
+					'mensaje_bienvenida' => '',
+					'notas_menu' => '',
+					'mensaje_pedido' => '',
+					'pie_menu' => ''
+				];
+			}
+			
+			echo json_encode(['ok' => true, 'data' => $row]);
+		} catch (Exception $e) {
+			log_message('error', 'Error en ajustes_get: ' . $e->getMessage());
+			http_response_code(500);
+			echo json_encode(['ok' => false, 'msg' => 'Error al cargar ajustes']);
+		}
 	}
 
 	public function ajustes_update()
 	{
 		$tid = current_tenant_id();
 		$data = [];
-		foreach (['idioma', 'moneda', 'formato_precio', 'notas', 'show_precios', 'show_imgs'] as $k) {
-			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
+		
+		// Información general
+		$generalFields = [
+			'nombre_negocio', 'telefono', 'email', 'direccion'
+		];
+		
+		// Personalización visual
+		$visualFields = [
+			'color_primario', 'logo_url', 'mostrar_precios', 'mostrar_imagenes', 'aceptar_pedidos'
+		];
+		
+		// Configuración regional
+		$regionalFields = [
+			'idioma', 'moneda', 'formato_precio', 'zona_horaria'
+		];
+		
+		// Mensajes personalizados
+		$messageFields = [
+			'mensaje_bienvenida', 'notas_menu', 'mensaje_pedido', 'pie_menu'
+		];
+		
+		// Horarios (7 días x 3 campos)
+		$horarioFields = [];
+		$dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+		foreach ($dias as $dia) {
+			$horarioFields[] = $dia . '_abierto';
+			$horarioFields[] = $dia . '_inicio';
+			$horarioFields[] = $dia . '_fin';
 		}
+		
+		// Unir todos los campos
+		$allFields = array_merge($generalFields, $visualFields, $regionalFields, $messageFields, $horarioFields);
+		
+		// Recolectar datos del POST
+		foreach ($allFields as $k) {
+			if (null !== ($v = $this->input->post($k))) {
+				$data[$k] = $v;
+			}
+		}
+		
+		// Guardar
 		$this->ajustes_model->upsert($tid, $data);
 		echo json_encode(['ok' => true]);
 	}

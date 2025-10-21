@@ -74,7 +74,7 @@
 		window.IMENU = window.IMENU || {};
 		window.IMENU.routes = {
 			login: '<?php echo site_url('tenantauth/login'); ?>',
-			dashboard: '<?php echo site_url('app/dashboard_view'); ?>'
+			dashboard: '<?php echo site_url('app/dashboard'); ?>'
 		};
 
 		// Configurar CSRF token para el formulario de login

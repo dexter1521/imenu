@@ -83,11 +83,18 @@ class Producto_model extends CI_Model
 	/**
 	 * Contar productos de un tenant
 	 * @param int $tenant_id
+	 * @param array $filters Filtros opcionales como ['activo' => 1]
 	 * @return int
 	 */
-	public function count_by_tenant($tenant_id)
+	public function count_by_tenant($tenant_id, $filters = [])
 	{
-		return $this->db->where('tenant_id', (int)$tenant_id)
-			->count_all_results('productos');
+		$this->db->where('tenant_id', (int)$tenant_id);
+
+		// Aplicar filtros adicionales
+		if (isset($filters['activo'])) {
+			$this->db->where('activo', (int)$filters['activo']);
+		}
+
+		return $this->db->count_all_results('productos');
 	}
 }

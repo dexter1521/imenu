@@ -53,83 +53,124 @@ $route['default_controller'] = 'welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
-$route['r/(:any)'] = 'public/menu/$1';
-$route['api/auth/login'] = 'TenantAuth/login';
+// ========================================
+// RUTAS PÚBLICAS (sin autenticación)
+// ========================================
 
-$route['api/app/dashboard'] = 'app/dashboard';
+// Menú público por código QR
+$route['r/(:any)'] = 'public/menu/$1';
+
+// API pública
+$route['api/public/menu'] = 'public/api_menu';
+$route['api/public/pedido']['post'] = 'public/crear_pedido';
+
+// ========================================
+// AUTENTICACIÓN TENANT
+// ========================================
+
+$route['app/auth'] = 'TenantAuth/login';
+$route['tenantauth/login'] = 'TenantAuth/login';
+$route['tenantauth/logout'] = 'TenantAuth/logout';
+$route['tenantpanel/login'] = 'TenantPanel/login';
+
+// Compatibilidad legacy
+$route['api/auth/login'] = 'TenantAuth/login';
+$route['api/auth/logout'] = 'TenantAuth/logout';
+
+// ========================================
+// PANEL TENANT - VISTAS (requieren JWT)
+// ========================================
+
+$route['app/panel/dashboard'] = 'App/dashboard';
+$route['app/panel/categorias'] = 'App/categorias_view';
+$route['app/panel/productos'] = 'App/productos_view';
+$route['app/panel/pedidos'] = 'App/pedidos_view';
+$route['app/panel/usuarios'] = 'App/usuarios_view';
+$route['app/panel/plan'] = 'App/plan_view';
+$route['app/panel/ajustes'] = 'App/ajustes_view';
+
+// ========================================
+// PANEL TENANT - API ENDPOINTS (requieren JWT)
+// ========================================
+
+// Dashboard
+$route['api/app/dashboard'] = 'app/dashboard_data';
+
+// Plan y Suscripción
+$route['api/app/plan_info']['get'] = 'app/plan_info';
+
+// Categorías
 $route['api/app/categorias']['get'] = 'app/categorias';
 $route['api/app/categoria']['post'] = 'app/categoria_create';
 $route['api/app/categoria/(:num)']['post'] = 'app/categoria_update/$1';
 $route['api/app/categoria/(:num)']['delete'] = 'app/categoria_delete/$1';
 
+// Productos
 $route['api/app/productos']['get'] = 'app/productos';
 $route['api/app/producto']['post'] = 'app/producto_create';
 $route['api/app/producto/(:num)']['post'] = 'app/producto_update/$1';
 $route['api/app/producto/(:num)']['delete'] = 'app/producto_delete/$1';
 
+// Pedidos
+$route['api/app/pedidos']['get'] = 'app/pedidos';
+$route['api/app/pedido/(:num)']['get'] = 'app/pedido/$1';
+$route['api/app/pedido']['post'] = 'app/pedido_create';
+$route['api/app/pedido_update_estado/(:num)']['post'] = 'app/pedido_update_estado/$1';
+$route['api/app/pedido/(:num)']['delete'] = 'app/pedido_delete/$1';
+$route['api/app/pedidos_export']['get'] = 'app/pedidos_export';
+
+// Staff/Usuarios
+$route['api/app/usuarios']['get'] = 'app/usuarios_list';
+$route['api/app/usuario']['post'] = 'app/usuario_create';
+$route['api/app/usuario/(:num)']['post'] = 'app/usuario_update/$1';
+$route['api/app/usuario/(:num)']['delete'] = 'app/usuario_delete/$1';
+$route['api/app/usuario/(:num)/permisos']['get'] = 'app/permisos_get/$1';
+$route['api/app/usuario/(:num)/permisos']['post'] = 'app/permisos_update/$1';
+
+// Ajustes
 $route['api/app/ajustes']['get'] = 'app/ajustes_get';
 $route['api/app/ajustes']['post'] = 'app/ajustes_update';
 
-$route['api/admin/tenants']['get'] = 'admin/tenants';
-$route['api/admin/tenant']['post'] = 'admin/tenant_create';
-$route['api/admin/planes']['get'] = 'admin/planes';
-$route['api/admin/plan']['post'] = 'admin/plan_create';
-$route['api/admin/pagos']['get'] = 'admin/pagos';
+// ========================================
+// AUTENTICACIÓN ADMIN SaaS
+// ========================================
 
-$route['api/public/menu'] = 'public/api_menu';
-
-// ===== Rutas sugeridas (application/config/routes.php) =====
-$route['api/app/usuarios']['get']            = 'app/usuarios_list';
-$route['api/app/usuario']['post']            = 'app/usuario_create';
-$route['api/app/usuario/(:num)']['post']     = 'app/usuario_update/$1';
-$route['api/app/usuario/(:num)']['delete']   = 'app/usuario_delete/$1';
-$route['api/app/usuario/(:num)/permisos']['get']  = 'app/permisos_get/$1';
-$route['api/app/usuario/(:num)/permisos']['post'] = 'app/permisos_update/$1';
-
-
-// Público
-$route['api/public/pedido']['post'] = 'public/crear_pedido';
-
-// Panel (JWT)
-$route['api/app/pedidos']['get']        = 'app/pedidos';
-$route['api/app/pedido/(:num)']['get']  = 'app/pedido/$1';
-
-
-// Ruta para el login de administradores saas (global)
 $route['admin/auth'] = 'AdminAuth/login';
 $route['adminauth/login'] = 'AdminAuth/login';
 $route['adminauth/logout'] = 'AdminAuth/logout';
-
-// Panel administrativo SaaS - Landing de login (sin autenticación)
 $route['adminpanel/login'] = 'AdminPanel/login';
 
-// Vistas del panel admin (requieren autenticación JWT con rol admin)
+// ========================================
+// PANEL ADMIN - VISTAS (requieren JWT admin)
+// ========================================
+
 $route['admin/dashboard'] = 'Admin/dashboard';
 $route['admin/tenants_view'] = 'Admin/tenants_view';
 $route['admin/planes_view'] = 'Admin/planes_view';
 $route['admin/pagos_view'] = 'Admin/pagos_view';
 $route['admin/suscripciones_view'] = 'Admin/suscripciones_view';
-$route['admin/dashboard_view'] = 'Admin/dashboard_view';
 
-// API endpoints del panel admin
+// ========================================
+// PANEL ADMIN - API ENDPOINTS (requieren JWT admin)
+// ========================================
+
+// Dashboard
 $route['admin/dashboard_stats'] = 'Admin/dashboard_stats';
+
+// Tenants
 $route['api/admin/tenants']['get'] = 'Admin/tenants';
 $route['api/admin/tenant']['post'] = 'Admin/tenant_create';
 $route['api/admin/tenant/(:num)']['post'] = 'Admin/tenant_update/$1';
 $route['api/admin/tenant/(:num)']['delete'] = 'Admin/tenant_delete/$1';
+
+// Planes
 $route['api/admin/planes']['get'] = 'Admin/planes';
 $route['api/admin/plan']['post'] = 'Admin/plan_create';
 $route['api/admin/plan/(:num)']['post'] = 'Admin/plan_update/$1';
 $route['api/admin/plan/(:num)']['delete'] = 'Admin/plan_delete/$1';
+
+// Pagos
 $route['api/admin/pagos']['get'] = 'Admin/pagos';
 $route['admin/pago_stats'] = 'Admin/pago_stats';
 $route['admin/pago_detail/(:num)'] = 'Admin/pago_detail/$1';
 $route['admin/pago_export'] = 'Admin/pago_export';
-
-// Ruta para el login de tenants (global)
-$route['app/auth'] = 'TenantAuth/login';
-$route['tenantauth/login'] = 'TenantAuth/login';
-$route['tenantauth/logout'] = 'TenantAuth/logout';
-
-// Compatibilidad para logout antiguo
-$route['api/auth/logout'] = 'TenantAuth/logout';
