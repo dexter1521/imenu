@@ -14,7 +14,8 @@
 		"php": ">=5.3.7",
 		"vlucas/phpdotenv": "^5.6",
 		"aws/aws-sdk-php": "^3.314",
-		"twilio/sdk": "^8.2"
+		"twilio/sdk": "^8.2",
+		"firebase/php-jwt": "*"
 	},
 	"suggest": {
 		"paragonie/random_compat": "Provides better randomness in PHP 5.x"

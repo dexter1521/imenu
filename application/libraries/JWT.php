@@ -4,11 +4,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 // Asegurarse de que Composer autoload esté incluido para cargar Firebase\JWT
 if (!class_exists('Firebase\\JWT\\JWT')) {
-	$autoloadPath = FCPATH . 'vendor/autoload.php';
+	$autoloadPath = __DIR__ . '/../../vendor/autoload.php';
 	if (file_exists($autoloadPath)) {
 		require_once $autoloadPath;
+	} else {
+		log_message('error', 'No se encontró vendor/autoload.php');
 	}
 }
+
 
 use \Firebase\JWT\JWT as FirebaseJWT;
 
