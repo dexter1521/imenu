@@ -187,6 +187,28 @@ class App extends MY_Controller
 			->set_output(json_encode($response));
 	}
 
+	// ===== Información del Tenant (DEBUG) =====
+	public function tenant_info()
+	{
+		$tid = current_tenant_id();
+		$tenant = $this->tenant_model->get($tid);
+		
+		$info = [
+			'ok' => true,
+			'tenant' => [
+				'id' => $tenant->id,
+				'nombre' => $tenant->nombre,
+				'slug' => $tenant->slug ?? 'NO CONFIGURADO',
+				'activo' => $tenant->activo,
+				'url_menu_publico' => $tenant->slug ? base_url('r/' . $tenant->slug) : 'Slug no configurado'
+			]
+		];
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($info));
+	}
+
 	// ===== Plan y Suscripción =====
 	// GET /app/plan_info - Información del plan y uso actual
 	public function plan_info()

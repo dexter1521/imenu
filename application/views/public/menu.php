@@ -10,76 +10,25 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<title><?= htmlspecialchars($tenant->nombre) ?> | Menú</title>
-	<link rel="stylesheet" href="/assets/css/bootstrap.min.css">
+	<link href="<?php echo base_url('assets/css/sb-admin-2.min.css'); ?>" rel="stylesheet">
+	<link href="<?php echo base_url('assets/css/menu.css'); ?>" rel="stylesheet">
+	<link href="<?php echo base_url('assets/vendor/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet" />
+	<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+	
+	<!-- Variables CSS dinámicas -->
 	<style>
-		body {
-			background: #f7f7f9;
-			color: #333
-		}
-
-		.header {
-			background: <?= htmlspecialchars($tenant->color_primario ?: '#343a40') ?>;
-			color: #fff;
-			padding: 24px 0
-		}
-
-		.header .brand {
-			display: flex;
-			align-items: center;
-			gap: 16px;
-			justify-content: center
-		}
-
-		.brand img {
-			max-height: 72px;
-			object-fit: contain
-		}
-
-		.card-product {
-			transition: box-shadow .2s ease
-		}
-
-		.card-product:hover {
-			box-shadow: 0 8px 24px rgba(0, 0, 0, .08)
-		}
-
-		.price {
-			font-weight: 700
-		}
-
-		.powered {
-			font-size: 12px;
-			color: #6c757d
-		}
-
-		.bar-cart {
-			position: fixed;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background: #fff;
-			border-top: 1px solid #e5e5e5;
-			box-shadow: 0 -4px 18px rgba(0, 0, 0, .06);
-			padding: 10px 0;
-			z-index: 1050
-		}
-
-		.bar-cart .total {
-			font-weight: 700
-		}
-
-		.btn-add {
-			white-space: nowrap
-		}
-
-		.form-error {
-			font-size: .85rem;
-			color: #c00;
-			display: none
-		}
-
-		.modal-footer .left {
-			flex: 1
+		:root {
+			--primary-color: <?= htmlspecialchars($aj->color_primario ?? '#e91e63') ?>;
+			--primary-color-rgb: <?php 
+				$color = $aj->color_primario ?? '#e91e63';
+				// Convertir hex a RGB
+				$color = str_replace('#', '', $color);
+				$r = hexdec(substr($color, 0, 2));
+				$g = hexdec(substr($color, 2, 2));
+				$b = hexdec(substr($color, 4, 2));
+				echo "$r, $g, $b";
+			?>;
 		}
 	</style>
 </head>
@@ -103,7 +52,7 @@
 	$wa = preg_replace('/\D+/', '', (string)$tenant->whatsapp);
 
 	// Imagen por defecto
-	$noImg = '/assets/img/no-image.png';
+	$noImg = base_url('assets/img/200x200.jpg');  // Imagen por defecto genérica
 	?>
 
 	<header class="header">
@@ -113,9 +62,9 @@
 					<img src="<?= htmlspecialchars($tenant->logo_url) ?>" alt="<?= htmlspecialchars($tenant->nombre) ?>">
 				<?php endif; ?>
 				<div>
-					<h2 class="mb-0"><?= htmlspecialchars($tenant->nombre) ?></h2>
+					<h2 class="mb-1"><?= htmlspecialchars($tenant->nombre) ?></h2>
 					<?php if (!empty($tenant->whatsapp)): ?>
-						<small>WhatsApp: <?= htmlspecialchars($tenant->whatsapp) ?></small>
+						<small><i class="fab fa-whatsapp"></i> <?= htmlspecialchars($tenant->whatsapp) ?></small>
 					<?php endif; ?>
 				</div>
 			</div>
@@ -125,17 +74,31 @@
 	<main class="py-4 mb-5">
 		<div class="container">
 			<!-- Filtros -->
-			<div class="row mb-3">
-				<div class="col-md-6 mb-2">
-					<input id="search" class="form-control" type="text" placeholder="Buscar platillos... (nombre o descripción)">
+			<div class="row mb-4">
+				<div class="col-md-6 mb-3">
+					<div class="input-group">
+						<div class="input-group-prepend">
+							<span class="input-group-text bg-white border-right-0">
+								<i class="fas fa-search text-muted"></i>
+							</span>
+						</div>
+						<input id="search" class="form-control border-left-0" type="text" placeholder="Buscar platillos... (nombre o descripción)">
+					</div>
 				</div>
-				<div class="col-md-6 mb-2">
-					<select id="category" class="form-control">
-						<option value="">Todas las categorías</option>
-						<?php foreach ($cats as $c): ?>
-							<option value="cat-<?= (int)$c->id ?>"><?= htmlspecialchars($c->nombre) ?></option>
-						<?php endforeach; ?>
-					</select>
+				<div class="col-md-6 mb-3">
+					<div class="input-group">
+						<div class="input-group-prepend">
+							<span class="input-group-text bg-white border-right-0">
+								<i class="fas fa-filter text-muted"></i>
+							</span>
+						</div>
+						<select id="category" class="form-control border-left-0">
+							<option value="">Todas las categorías</option>
+							<?php foreach ($cats as $c): ?>
+								<option value="cat-<?= (int)$c->id ?>"><?= htmlspecialchars($c->nombre) ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
 				</div>
 			</div>
 
@@ -178,7 +141,7 @@
 									data-name="<?= htmlspecialchars($name) ?>"
 									data-price="<?= number_format($price, 2, '.', '') ?>"
 									data-cat="cat-<?= $cat ?>">
-									Agregar
+									<i class="fas fa-plus-circle"></i> Agregar
 								</button>
 							</div>
 						</div>
@@ -194,11 +157,17 @@
 
 	<!-- Barra inferior de carrito -->
 	<div class="bar-cart d-none" id="barCart">
-		<div class="container d-flex align-items-center">
-			<div class="mr-auto">
-				<span id="cartCount">0</span> artículo(s) · <span class="total" id="cartTotal">$0.00</span>
+		<div class="container d-flex align-items-center justify-content-between">
+			<div class="d-flex align-items-center">
+				<span id="cartCount">0</span>
+				<div class="ml-2">
+					<small class="d-block text-muted" style="font-size: 0.75rem;">artículos</small>
+					<span class="total" id="cartTotal">$0.00</span>
+				</div>
 			</div>
-			<button class="btn btn-success" id="btnCheckout">Ver pedido</button>
+			<button class="btn btn-success" id="btnCheckout">
+				<i class="fas fa-shopping-cart"></i> Ver pedido
+			</button>
 		</div>
 	</div>
 
@@ -226,7 +195,7 @@
 					<div class="mt-2 text-right"><small>Precio: <span id="qtyPrice"></span></small></div>
 				</div>
 				<div class="modal-footer py-2">
-					<button type="button" class="btn btn-light" data-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
 					<button type="button" class="btn btn-primary" id="qtyAddConfirm">Agregar</button>
 				</div>
 			</div>
@@ -301,19 +270,24 @@
 
 				<div class="modal-footer">
 					<div class="left text-muted small">Se enviará el pedido por WhatsApp al negocio.</div>
-					<button type="button" class="btn btn-light" data-dismiss="modal">Seguir viendo</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
 					<button type="button" class="btn btn-success" id="btnEnviarPedido">Enviar pedido</button>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<script src="/assets/js/jquery.min.js"></script>
-	<script src="/assets/js/bootstrap.bundle.min.js"></script>
+	<script src="<?php echo base_url('assets/vendor/jquery/jquery.min.js'); ?>"></script>
+	<script src="<?php echo base_url('assets/vendor/bootstrap/js/bootstrap.bundle.min.js'); ?>"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 	<script>
 		(function() {
 			// ---------- Utilidades ----------
 			var currency = <?= json_encode($symbol) ?>;
+			
+			// CSRF token para CodeIgniter
+			var csrfName = '<?= $this->security->get_csrf_token_name() ?>';
+			var csrfHash = '<?= $this->security->get_csrf_hash() ?>';
 
 			function money(n) {
 				n = parseFloat(n || 0);
@@ -427,7 +401,10 @@
 				$('#qtyProdName').text(currentProd.nombre);
 				$('#qtyPrice').text(money(currentProd.precio));
 				$('#qtyInput').val(1);
-				$('#qtyModal').modal('show');
+				$('#qtyModal').modal({
+					backdrop: 'static',
+					keyboard: false
+				});
 			});
 			$('#btnMinus').on('click', function() {
 				var v = parseInt($('#qtyInput').val() || 1);
@@ -474,7 +451,10 @@
 
 			$('#btnCheckout').on('click', function() {
 				renderResumen();
-				$('#checkoutModal').modal('show');
+				$('#checkoutModal').modal({
+					backdrop: 'static',
+					keyboard: false
+				});
 			});
 
 			// Cambios de cantidad/Quitar dentro del resumen
@@ -543,28 +523,51 @@
 						};
 					}))
 				};
+				
+				// Agregar token CSRF
+				payload[csrfName] = csrfHash;
 
 				$('#btnEnviarPedido').prop('disabled', true).text('Enviando...');
 				$.ajax({
-					url: '/api/public/pedido',
+					url: '<?= base_url("api/public/pedido") ?>',
 					method: 'POST',
 					data: payload
 				}).done(function(res) {
+					// Actualizar CSRF hash para próxima petición
+					if (res && res.csrf_token) {
+						csrfHash = res.csrf_token;
+					}
+					
 					if (res && res.ok) {
 						if (res.whatsapp_url) {
 							window.location.href = res.whatsapp_url;
 						} else {
-							alert('Pedido creado: #' + res.pedido_id);
+							Swal.fire({
+								icon: 'success',
+								title: '¡Pedido creado!',
+								text: 'Pedido #' + res.pedido_id,
+								confirmButtonColor: 'var(--primary-color)'
+							});
 						}
 						// Limpia carrito
 						cart = [];
 						cartRenderBar();
 						$('#checkoutModal').modal('hide');
 					} else {
-						alert((res && res.msg) ? res.msg : 'No se pudo crear el pedido.');
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: (res && res.msg) ? res.msg : 'No se pudo crear el pedido.',
+							confirmButtonColor: 'var(--primary-color)'
+						});
 					}
 				}).fail(function(xhr) {
-					alert('Error enviando pedido. Intenta de nuevo.');
+					Swal.fire({
+						icon: 'error',
+						title: 'Error de conexión',
+						text: 'No se pudo enviar el pedido. Intenta de nuevo.',
+						confirmButtonColor: 'var(--primary-color)'
+					});
 				}).always(function() {
 					$('#btnEnviarPedido').prop('disabled', false).text('Enviar pedido');
 				});

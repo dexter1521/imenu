@@ -2,6 +2,9 @@
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
 	<h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
 	<div>
+		<button type="button" class="btn btn-sm btn-info mr-2" id="btn-ver-slug" title="Ver URL del menú público">
+			<i class="fas fa-qrcode"></i> Ver URL Menú
+		</button>
 		<small class="text-muted">Última actualización: <span id="last-update">--</span></small>
 	</div>
 </div>
@@ -324,5 +327,67 @@
 
 		// Actualizar cada 60 segundos
 		setInterval(loadDashboard, 60000);
+
+		// Botón para ver URL del menú público
+		const btnVerSlug = document.getElementById('btn-ver-slug');
+		if (btnVerSlug) {
+			btnVerSlug.addEventListener('click', function() {
+				fetch(BASE + 'api/app/tenant_info', {
+					method: 'GET',
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				})
+				.then(res => res.json())
+				.then(resp => {
+					if (resp && resp.ok && resp.tenant) {
+						const t = resp.tenant;
+						const slug = t.slug || 'NO CONFIGURADO';
+						const url = t.url_menu_publico || 'Slug no configurado';
+						
+						if (window.Swal) {
+							Swal.fire({
+								icon: slug === 'NO CONFIGURADO' ? 'warning' : 'info',
+								title: 'URL del Menú Público',
+								html: '<div class="text-left">' +
+									'<p><strong>Nombre:</strong> ' + t.nombre + '</p>' +
+									'<p><strong>Slug:</strong> <code>' + slug + '</code></p>' +
+									'<p><strong>URL:</strong> <a href="' + url + '" target="_blank">' + url + '</a></p>' +
+									(slug === 'NO CONFIGURADO' ? 
+										'<div class="alert alert-warning mt-3">⚠️ Necesitas configurar el slug en la base de datos para acceder al menú público.</div>' : 
+										'<div class="alert alert-info mt-3">💡 Comparte esta URL para que tus clientes vean el menú.</div>') +
+									'</div>',
+								width: '600px',
+								confirmButtonText: 'Cerrar'
+							});
+						} else {
+							alert('Nombre: ' + t.nombre + '\nSlug: ' + slug + '\nURL: ' + url);
+						}
+					} else {
+						if (window.Swal) {
+							Swal.fire({
+								icon: 'error',
+								title: 'Error',
+								text: 'No se pudo obtener la información del tenant'
+							});
+						} else {
+							alert('Error al obtener información');
+						}
+					}
+				})
+				.catch(err => {
+					console.error('Error:', err);
+					if (window.Swal) {
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: 'No se pudo conectar con el servidor'
+						});
+					} else {
+						alert('Error de conexión');
+					}
+				});
+			});
+		}
 	})();
 </script>

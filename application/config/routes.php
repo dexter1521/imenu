@@ -58,11 +58,11 @@ $route['translate_uri_dashes'] = FALSE;
 // ========================================
 
 // Menú público por código QR
-$route['r/(:any)'] = 'public/menu/$1';
+$route['r/(:any)'] = 'PublicUser/menu/$1';
 
 // API pública
-$route['api/public/menu'] = 'public/api_menu';
-$route['api/public/pedido']['post'] = 'public/crear_pedido';
+$route['api/public/menu'] = 'PublicUser/api_menu';
+$route['api/public/pedido']['post'] = 'PublicUser/crear_pedido';
 
 // ========================================
 // AUTENTICACIÓN TENANT
@@ -95,6 +95,9 @@ $route['app/panel/ajustes'] = 'App/ajustes_view';
 
 // Dashboard
 $route['api/app/dashboard'] = 'app/dashboard_data';
+
+// Información del tenant (debug)
+$route['api/app/tenant_info']['get'] = 'app/tenant_info';
 
 // Plan y Suscripción
 $route['api/app/plan_info']['get'] = 'app/plan_info';

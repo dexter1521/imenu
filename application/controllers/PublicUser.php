@@ -95,10 +95,17 @@ class PublicUser extends CI_Controller
 		$msg = implode("\n", $lineas);
 		$waUrl = $waNum ? ('https://wa.me/52' . $waNum . '?text=' . rawurlencode($msg)) : null;
 
+		// Obtener nuevo token CSRF
+		$csrf = array(
+			'name' => $this->config->item('csrf_token_name'),
+			'hash' => $this->security->get_csrf_hash()
+		);
+
 		return $this->output->set_output(json_encode([
 			'ok' => true,
 			'pedido_id' => $pedido_id,
-			'whatsapp_url' => $waUrl
+			'whatsapp_url' => $waUrl,
+			'csrf_token' => $csrf['hash']
 		]));
 	}
 }
