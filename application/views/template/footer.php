@@ -81,7 +81,7 @@
                 					if (isAdmin) {
                 						window.location.href = '<?php echo site_url('adminpanel/login'); ?>';
                 					} else {
-                						window.location.href = '<?php echo site_url('app/login'); ?>';
+                						window.location.href = '<?php echo site_url('tenantpanel/login'); ?>';
                 					}
                 				}, 100);
                 			});
