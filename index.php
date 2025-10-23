@@ -36,12 +36,6 @@
  * @filesource
  */
 
-// Cargar el autoloader de Composer
-require_once __DIR__ . '/vendor/autoload.php';
-
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
-
 /*
  *---------------------------------------------------------------
  * APPLICATION ENVIRONMENT
@@ -318,4 +312,9 @@ switch (ENVIRONMENT)
  *
  * And away we go...
  */
+// Cargar variables de entorno desde .env
+require_once __DIR__ . '/vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 require_once BASEPATH.'core/CodeIgniter.php';
