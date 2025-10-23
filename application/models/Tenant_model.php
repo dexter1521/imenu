@@ -182,10 +182,14 @@ class Tenant_model extends CI_Model
 	public function get_dashboard_stats()
 	{
 		// Total de tenants
-		$total = $this->db->count_all('tenants');
+		$total = $this->db->select('COUNT(id) as total')->from('tenants')->where_not_in('id', [2])->get()->row();
+		$total = $total ? (int)$total->total : 0;
+
 
 		// Tenants activos
-		$activos = $this->db->where('activo', 1)->count_all_results('tenants');
+		$sWhere = array('activo' => 1, 'id !=' => 2);
+		$activos = $this->db->select('COUNT(id) as activos')->from('tenants')->where($sWhere)->get()->row();
+		$activos = $activos ? (int)$activos->activos : 0;
 
 		// Tenants suspendidos
 		$suspendidos = $total - $activos;
