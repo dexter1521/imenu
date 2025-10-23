@@ -246,7 +246,7 @@
                 <td>${r.id}</td>
                 <td>${escapeHtml(r.nombre)}</td>
                 <td>${escapeHtml(r.slug || '')}</td>
-                <td>${r.plan_id ? '<span class="badge badge-success">ID:' + r.plan_id + '</span>' : '<span class="badge badge-secondary">-</span>'}</td>
+                <td>${r.plan_nombre ? '<span class="badge badge-success">ID:' + r.plan_nombre + '</span>' : '<span class="badge badge-secondary">-</span>'}</td>
                 <td>${r.activo == 1 ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-secondary">Inactivo</span>'}</td>
                 <td>${r.created_at || ''}</td>
                 <td class="text-right">
@@ -1298,8 +1298,8 @@
 
 			tr.innerHTML = `
 				<td>${r.id}</td>
-				<td>${escapeHtml(r.tenant_id)}</td>
-				<td>${escapeHtml(r.plan_id)}</td>
+				<td>${escapeHtml(r.tenant_nombre)}</td>
+				<td>${escapeHtml(r.plan_nombre)}</td>
 				<td>${formatDate(r.inicio)}</td>
 				<td>${formatDate(r.fin)}</td>
 				<td><span class="badge badge-${badgeClass}">${ucfirst(r.estatus)}</span></td>

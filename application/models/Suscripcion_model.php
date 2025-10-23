@@ -16,7 +16,12 @@ class Suscripcion_model extends CI_Model
 	 */
 	public function get_all()
 	{
-		return $this->db->get('suscripciones')->result();
+		$this->db->select('suscripciones.*, tenants.nombre as tenant_nombre, planes.nombre as plan_nombre');
+		$this->db->from('suscripciones');
+		$this->db->join('tenants', 'tenants.id = suscripciones.tenant_id');
+		$this->db->join('planes', 'planes.id = suscripciones.plan_id');
+		$data = $this->db->order_by('suscripciones.id', 'DESC')->get()->result();
+		return $data;
 	}
 
 	/**

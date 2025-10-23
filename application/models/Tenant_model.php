@@ -16,7 +16,12 @@ class Tenant_model extends CI_Model
 	 */
 	public function get_all()
 	{
-		return $this->db->order_by('created_at', 'DESC')->get('tenants')->result();
+		$this->db->select('tenants.*, planes.nombre as plan_nombre');
+		$this->db->from('tenants');
+		$this->db->join('planes', 'planes.id = tenants.plan_id');
+		$data = $this->db->order_by('created_at', 'DESC')->get()->result();
+
+		return $data;
 	}
 
 	/**
