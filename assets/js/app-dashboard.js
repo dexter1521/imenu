@@ -1,15 +1,18 @@
 (function () {
 	'use strict';
 
-	const BASE = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL) ?
+	const BASE_URL = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL) ?
 		window.IMENU_BASE_URL :
 		'/imenu/';
 
-	function appUrl(path) {
-		path = path || '';
-		if (path.charAt(0) === '/') path = path.slice(1);
-		return BASE + 'app/' + path;
+	function url(path) {
+		return BASE_URL + path;
 	}
+
+	const api = {
+		dashboard: url('app/dashboard_data'),
+		pedidos: (id) => url('pedidosservice/pedido/') + encodeURIComponent(id),
+	};
 
 	function formatCurrency(amount) {
 		return '$' + parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
@@ -44,13 +47,12 @@
 	}
 
 	function loadDashboard() {
-		fetch(appUrl('dashboard_data'), {
+		fetch(api.dashboard, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'
 			}
-		})
-			.then(res => res.json())
+		}).then(res => res.json())
 			.then(resp => {
 				if (!resp || !resp.ok) {
 					console.error('Error al cargar dashboard');
@@ -107,7 +109,7 @@
 							'<td>' + getEstadoBadge(p.estado) + '</td>' +
 							'<td>' + formatDate(p.creado_en) + '</td>' +
 							'<td>' +
-							'<a href="' + appUrl('pedidos/' + p.id) + '" class="btn btn-sm btn-info">Ver</a>' +
+							'<button class="btn btn-sm btn-info" onclick="verDetallePedido(' + p.id + ')">Ver</button>' +
 							'</td>' +
 							'</tr>';
 					});
@@ -137,6 +139,107 @@
 
 	// Actualizar cada 60 segundos
 	setInterval(loadDashboard, 60000);
+
+	// Función global para ver detalle del pedido
+	window.verDetallePedido = function (pedidoId) {
+		fetch(api.pedidos(pedidoId), {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		})
+			.then(res => res.json())
+			.then(resp => {
+				if (!resp || !resp.ok) {
+					if (window.Swal) {
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: 'No se pudo cargar el pedido'
+						});
+					} else {
+						alert('Error al cargar el pedido');
+					}
+					return;
+				}
+
+				const pedido = resp.data;
+				let itemsHtml = '';
+
+				if (pedido.items && pedido.items.length > 0) {
+					pedido.items.forEach(item => {
+						itemsHtml += '<tr>' +
+							'<td>' + (item.producto_nombre || item.nombre) + '</td>' +
+							'<td class="text-center">' + item.cantidad + '</td>' +
+							'<td class="text-right">' + formatCurrency(item.precio_unit) + '</td>' +
+							'<td class="text-right">' + formatCurrency(item.subtotal) + '</td>' +
+							'</tr>';
+					});
+				} else {
+					itemsHtml = '<tr><td colspan="4" class="text-center text-muted">Sin items</td></tr>';
+				}
+
+				const modalHtml = '<div class="container-fluid">' +
+					'<div class="row mb-3">' +
+					'<div class="col-md-6"><strong>Pedido #:</strong> ' + pedido.id + '</div>' +
+					'<div class="col-md-6"><strong>Estado:</strong> ' + getEstadoBadge(pedido.estado) + '</div>' +
+					'</div>' +
+					'<div class="row mb-3">' +
+					'<div class="col-md-6"><strong>Cliente:</strong> ' + (pedido.nombre_cliente || 'Sin nombre') + '</div>' +
+					'<div class="col-md-6"><strong>Teléfono:</strong> ' + (pedido.telefono_cliente || 'N/A') + '</div>' +
+					'</div>' +
+					'<div class="row mb-3">' +
+					'<div class="col-md-6"><strong>Método de pago:</strong> ' + (pedido.metodo_pago || 'N/A') + '</div>' +
+					'<div class="col-md-6"><strong>Fecha:</strong> ' + formatDate(pedido.creado_en) + '</div>' +
+					'</div>' +
+					'<hr>' +
+					'<h5>Items del pedido:</h5>' +
+					'<table class="table table-sm table-bordered">' +
+					'<thead class="thead-light">' +
+					'<tr>' +
+					'<th>Producto</th>' +
+					'<th class="text-center">Cantidad</th>' +
+					'<th class="text-right">Precio Unit.</th>' +
+					'<th class="text-right">Subtotal</th>' +
+					'</tr>' +
+					'</thead>' +
+					'<tbody>' + itemsHtml + '</tbody>' +
+					'<tfoot>' +
+					'<tr class="font-weight-bold">' +
+					'<td colspan="3" class="text-right">Total:</td>' +
+					'<td class="text-right">' + formatCurrency(pedido.total) + '</td>' +
+					'</tr>' +
+					'</tfoot>' +
+					'</table>' +
+					'</div>';
+
+				if (window.Swal) {
+					Swal.fire({
+						title: 'Detalle del Pedido',
+						html: modalHtml,
+						width: '700px',
+						confirmButtonText: 'Cerrar'
+					});
+				} else {
+					alert('Pedido #' + pedido.id + '\n' +
+						'Cliente: ' + (pedido.nombre_cliente || 'Sin nombre') + '\n' +
+						'Total: ' + formatCurrency(pedido.total) + '\n' +
+						'Estado: ' + pedido.estado);
+				}
+			})
+			.catch(err => {
+				console.error('Error cargando pedido:', err);
+				if (window.Swal) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Error',
+						text: 'No se pudo conectar con el servidor'
+					});
+				} else {
+					alert('Error de conexión');
+				}
+			});
+	};
 
 	// Botón para ver URL del menú público
 	const btnVerSlug = document.getElementById('btn-ver-slug');
