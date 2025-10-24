@@ -1,13 +1,18 @@
-<?php
+<?php defined('BASEPATH') or exit('No direct script access allowed');
 
-defined('BASEPATH') or exit('No direct script access allowed');
+require_once APPPATH . 'traits/TenantScope.php';
 
 class Pedido_model extends CI_Model
 {
+	use TenantScope {
+		TenantScope::__construct as private __tenantScopeConstruct;
+	}
 
 	public function __construct()
 	{
 		parent::__construct();
+		// Llamar al constructor del trait para inicializar el tenant_id
+		$this->__tenantScopeConstruct();
 	}
 
 	/**
@@ -17,12 +22,17 @@ class Pedido_model extends CI_Model
 	{
 		$this->db->trans_start();
 
+		// Asegurarse de que el tenant_id del scope se incluya en la inserción
+		if ($this->tenant_id && !isset($pedido_data['tenant_id'])) {
+			$pedido_data['tenant_id'] = $this->tenant_id;
+		}
+
 		// Calcular total
 		$total = 0;
 		$items_validados = [];
 
 		foreach ($items as $item) {
-			// Validar que el producto existe y pertenece al tenant
+			// Validar que el producto existe, pertenece al tenant y está activo
 			$producto = $this->db->get_where('productos', [
 				'id' => $item['producto_id'],
 				'tenant_id' => $pedido_data['tenant_id'],
@@ -71,10 +81,9 @@ class Pedido_model extends CI_Model
 	/**
 	 * Método legacy (mantener compatibilidad)
 	 */
-	public function create($tenant_id, $nombre, $telefono, $metodo_pago, $items)
+	public function create($nombre, $telefono, $metodo_pago, $items)
 	{
 		$pedido_data = [
-			'tenant_id' => $tenant_id,
 			'nombre_cliente' => $nombre,
 			'telefono_cliente' => $telefono,
 			'metodo_pago' => $metodo_pago,
@@ -86,13 +95,14 @@ class Pedido_model extends CI_Model
 
 	/**
 	 * Listar pedidos por tenant con paginación y filtros
+	 * @param array $filters
+	 * @return array
 	 */
-	public function list_by_tenant($tenant_id, $filters = [])
+	public function get_all($filters = [])
 	{
 		$this->db->select('p.*, COUNT(pi.id) as total_items');
 		$this->db->from('pedidos p');
 		$this->db->join('pedido_items pi', 'pi.pedido_id = p.id', 'left');
-		$this->db->where('p.tenant_id', $tenant_id);
 
 		// Aplicar filtros
 		if (!empty($filters['estado'])) {
@@ -144,17 +154,22 @@ class Pedido_model extends CI_Model
 			$this->db->limit($filters['limit'], $filters['offset'] ?? 0);
 		}
 
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
+
 		return $this->db->get()->result();
 	}
 
 	/**
 	 * Obtener pedido con items
+	 * @param int $pedido_id
+	 * @return object|null
 	 */
-	public function get_with_items($tenant_id, $pedido_id)
+	public function get_with_items($pedido_id)
 	{
 		$pedido = $this->db->get_where('pedidos', [
-			'tenant_id' => $tenant_id,
-			'id' => $pedido_id
+			'id' => $pedido_id,
+			'tenant_id' => $this->tenant_id
 		], 1)->row();
 
 		if (!$pedido) {
@@ -173,14 +188,15 @@ class Pedido_model extends CI_Model
 
 	/**
 	 * Actualizar estado del pedido
+	 * @param int $pedido_id
+	 * @param string $estado
+	 * @return bool
 	 */
-	public function update_estado($tenant_id, $pedido_id, $estado)
+	public function update_estado($pedido_id, $estado)
 	{
-		$this->db->where([
-			'tenant_id' => $tenant_id,
-			'id' => $pedido_id
-		]);
-
+		$this->db->where('id', (int)$pedido_id);
+		// Aplicar el scope del tenant actual para seguridad
+		$this->applyTenantScope($this->db);
 		$updated = $this->db->update('pedidos', ['estado' => $estado]);
 		return $this->db->affected_rows() > 0;
 	}
@@ -188,14 +204,15 @@ class Pedido_model extends CI_Model
 	/**
 	 * Eliminar pedido y sus items
 	 */
-	public function delete_pedido($tenant_id, $pedido_id)
+	public function delete_pedido($pedido_id)
 	{
 		$this->db->trans_start();
 
 		// Verificar que el pedido pertenece al tenant
+		$this->db->where('id', (int)$pedido_id);
+		$this->applyTenantScope($this->db);
 		$pedido = $this->db->get_where('pedidos', [
-			'tenant_id' => $tenant_id,
-			'id' => $pedido_id
+			'id' => (int)$pedido_id
 		], 1)->row();
 
 		if (!$pedido) {
@@ -216,9 +233,10 @@ class Pedido_model extends CI_Model
 	/**
 	 * Contar pedidos por tenant con filtros
 	 */
-	public function count_by_tenant($tenant_id, $filters = [])
+	public function count($filters = [])
 	{
-		$this->db->where('tenant_id', $tenant_id);
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
 
 		// Aplicar los mismos filtros que en list_by_tenant
 		if (!empty($filters['estado'])) {
@@ -247,9 +265,10 @@ class Pedido_model extends CI_Model
 	/**
 	 * Obtener estadísticas de pedidos
 	 */
-	public function get_stats($tenant_id, $fecha_inicio = null, $fecha_fin = null)
+	public function get_stats($fecha_inicio = null, $fecha_fin = null)
 	{
-		$this->db->where('tenant_id', $tenant_id);
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
 
 		if ($fecha_inicio) {
 			$this->db->where('creado_en >=', $fecha_inicio);
@@ -290,11 +309,6 @@ class Pedido_model extends CI_Model
 	{
 		$this->db->limit($limit, $offset);
 		return $this;
-	}
-
-	public function get_all()
-	{
-		return $this->db->get('pedidos')->result();
 	}
 
 	/**

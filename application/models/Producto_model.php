@@ -1,100 +1,130 @@
-<?php
+<?php defined('BASEPATH') or exit('No direct script access allowed');
 
-defined('BASEPATH') or exit('No direct script access allowed');
+require_once APPPATH . 'traits/TenantScope.php';
 
 class Producto_model extends CI_Model
 {
+	use TenantScope {
+		TenantScope::__construct as private __tenantScopeConstruct;
+	}
+
+	private $table = 'productos';
 
 	public function __construct()
 	{
 		parent::__construct();
-		$this->load->database();
+		// Llamar al constructor del trait para inicializar el tenant_id
+		$this->__tenantScopeConstruct();
 	}
 
 	/**
-	 * Obtener todos los productos de un tenant ordenados
-	 * @param int $tenant_id
+	 * Obtiene todos los productos para el tenant actual.
 	 * @param bool $only_active Solo productos activos
+	 * @param array $filters Filtros adicionales (ej: ['destacado' => 1])
 	 * @return array
 	 */
-	public function get_by_tenant($tenant_id, $only_active = false)
+	public function get_all($only_active = false, $filters = [])
 	{
-		$this->db->where('tenant_id', (int)$tenant_id);
+		$this->db->from($this->table);
+
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
+
 		if ($only_active) {
 			$this->db->where('activo', 1);
 		}
+
+		// Aplicar filtros adicionales
+		if (!empty($filters)) {
+			$this->db->where($filters);
+		}
+
 		$this->db->order_by('orden', 'ASC');
-		return $this->db->get('productos')->result();
+		$query = $this->db->get();
+		return $query->result();
 	}
 
 	/**
-	 * Obtener un producto por ID
+	 * Obtiene un producto por su ID, asegurando que pertenezca al tenant actual.
 	 * @param int $id
-	 * @param int $tenant_id (opcional)
 	 * @return object|null
 	 */
-	public function get($id, $tenant_id = null)
+	public function get_by_id($id)
 	{
+		$this->db->from($this->table);
 		$this->db->where('id', (int)$id);
-		if ($tenant_id !== null) {
-			$this->db->where('tenant_id', (int)$tenant_id);
-		}
-		return $this->db->get('productos')->row();
+
+		// Aplicar el scope del tenant actual para seguridad
+		$this->applyTenantScope($this->db);
+
+		$query = $this->db->get();
+		return $query->row();
 	}
 
 	/**
-	 * Crear nuevo producto
+	 * Crea un nuevo producto. El tenant_id se añade automáticamente desde el trait.
 	 * @param array $data
-	 * @return int ID del producto creado
+	 * @return int|false
 	 */
 	public function create($data)
 	{
-		$this->db->insert('productos', $data);
-		return $this->db->insert_id();
+		// Asegurarse de que el tenant_id del scope se incluya en la inserción
+		if ($this->tenant_id && !isset($data['tenant_id'])) {
+			$data['tenant_id'] = $this->tenant_id;
+		}
+
+		if ($this->db->insert($this->table, $data)) {
+			return $this->db->insert_id();
+		}
+		return false;
 	}
 
 	/**
-	 * Actualizar producto
+	 * Actualiza un producto, asegurando que pertenezca al tenant actual.
 	 * @param int $id
-	 * @param int $tenant_id
 	 * @param array $data
 	 * @return bool
 	 */
-	public function update($id, $tenant_id, $data)
+	public function update($id, $data)
 	{
 		$this->db->where('id', (int)$id);
-		$this->db->where('tenant_id', (int)$tenant_id);
-		return $this->db->update('productos', $data);
+
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
+
+		return $this->db->update($this->table, $data);
 	}
 
 	/**
-	 * Eliminar producto
+	 * Elimina un producto, asegurando que pertenezca al tenant actual.
 	 * @param int $id
-	 * @param int $tenant_id
 	 * @return bool
 	 */
-	public function delete($id, $tenant_id)
+	public function delete($id)
 	{
 		$this->db->where('id', (int)$id);
-		$this->db->where('tenant_id', (int)$tenant_id);
-		return $this->db->delete('productos');
+
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
+
+		return $this->db->delete($this->table);
 	}
 
 	/**
-	 * Contar productos de un tenant
-	 * @param int $tenant_id
+	 * Cuenta los productos del tenant actual.
 	 * @param array $filters Filtros opcionales como ['activo' => 1]
 	 * @return int
 	 */
-	public function count_by_tenant($tenant_id, $filters = [])
+	public function count($filters = [])
 	{
-		$this->db->where('tenant_id', (int)$tenant_id);
+		// Aplicar el scope del tenant actual
+		$this->applyTenantScope($this->db);
 
 		// Aplicar filtros adicionales
 		if (isset($filters['activo'])) {
 			$this->db->where('activo', (int)$filters['activo']);
 		}
 
-		return $this->db->count_all_results('productos');
+		return $this->db->count_all_results($this->table);
 	}
 }

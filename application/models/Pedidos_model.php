@@ -1,7 +1,20 @@
-<?php
-class Pedido_model extends CI_Model
+<?php defined('BASEPATH') or exit('No direct script access allowed');
+
+require_once APPPATH . 'traits/TenantScope.php';
+
+class Pedidos_model extends CI_Model
 {
-	public function create($tenant_id, $nombre, $tel, $metodo, $items)
+	use TenantScope {
+		TenantScope::__construct as private __tenantScopeConstruct;
+	}
+	public function __construct()
+	{
+		parent::__construct();
+		$this->load->database();
+		$this->__tenantScopeConstruct();
+	}
+
+	public function create($nombre, $tel, $metodo, $items)
 	{
 		$this->db->trans_start();
 		$total = 0.0;
@@ -14,7 +27,7 @@ class Pedido_model extends CI_Model
 			if (!isset($productosCache[$pid])) {
 				$row = $this->db->get_where('productos', [
 					'id' => $pid,
-					'tenant_id' => $tenant_id,
+					'tenant_id' => $this->tenant_id,
 					'activo' => 1
 				], 1)->row();
 				if (!$row) throw new Exception('Producto inválido: ' . $pid);
@@ -25,7 +38,7 @@ class Pedido_model extends CI_Model
 		}
 
 		$this->db->insert('pedidos', [
-			'tenant_id' => $tenant_id,
+			'tenant_id' => $this->tenant_id,
 			'nombre_cliente' => $nombre,
 			'telefono_cliente' => $tel,
 			'metodo_pago' => $metodo,
@@ -55,19 +68,19 @@ class Pedido_model extends CI_Model
 		return $pedido_id;
 	}
 
-	public function list_by_tenant($tenant_id)
+	public function list_by_tenant()
 	{
-		return $this->db->select('id,nombre_cliente,telefono_cliente,metodo_pago,total,estado,creado_en')
-			->from('pedidos')
-			->where('tenant_id', $tenant_id)
-			->order_by('id', 'DESC')->get()->result();
+		$this->db->select('id,nombre_cliente,telefono_cliente,metodo_pago,total,estado,creado_en')
+			->from('pedidos');
+		$this->applyTenantScope($this->db);
+		return $this->db->order_by('id', 'DESC')->get()->result();
 	}
 
-	public function get_with_items($tenant_id, $pedido_id)
+	public function get_with_items($pedido_id)
 	{
 		$pedido = $this->db->get_where('pedidos', [
 			'id' => $pedido_id,
-			'tenant_id' => $tenant_id
+			'tenant_id' => $this->tenant_id
 		], 1)->row();
 		if (!$pedido) return null;
 		$items = $this->db->get_where('pedido_items', [
