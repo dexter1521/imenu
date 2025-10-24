@@ -22,7 +22,8 @@ class JWT
 
 	public function __construct()
 	{
-		$this->secret_key = 'ingDLMRuGe9UKHRNjs7cYckS2yul4lc3'; // Cambiar por un valor seguro
+		$CI = &get_instance();
+		$this->secret_key = $CI->config->item('jwt_secret');
 	}
 
 	public function encode($payload)

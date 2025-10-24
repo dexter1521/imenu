@@ -530,3 +530,6 @@ $config['rewrite_short_tags'] = FALSE;
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
 $config['proxy_ips'] = '';
+
+// Clave secreta para JWT
+$config['jwt_secret'] = getenv('JWT_SECRET'); // Se recomienda definir JWT_SECRET en el archivo .env

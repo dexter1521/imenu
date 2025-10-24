@@ -3,8 +3,8 @@
 if (!function_exists('jwt_secret')) {
 	function jwt_secret()
 	{
-		// Cambia a un valor largo aleatorio y guarda en .env/config
-		return 'ingDLMRuGe9UKHRNjs7cYckS2yul4lc3';
+		$CI = &get_instance();
+		return $CI->config->item('jwt_secret');
 	}
 }
 
