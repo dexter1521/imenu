@@ -255,11 +255,12 @@
 					if (!resp || resp.ok !== true) return;
 					let html = '';
 					(resp.data || []).forEach(p => {
+						console.log(resp.data);
 						const isActive = p.activo === '1' || p.activo === 1;
 						html += '<tr>' +
 							'<td>' + p.id + '</td>' +
 							'<td>' + (p.nombre || '') + '</td>' +
-							'<td>' + (p.categoria_id || '') + '</td>' +
+							'<td>' + (p.categoria_nombre || '') + '</td>' +
 							'<td>' + (p.precio || 0) + '</td>' +
 							'<td><span class="badge ' + (isActive ? 'badge-success' : 'badge-secondary') + '">' + (isActive ? 'Activo' : 'Inactivo') + '</span></td>' +
 							'<td>' +

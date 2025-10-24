@@ -144,8 +144,11 @@ class Producto_model extends CI_Model
 	 */
 	public function get_by_tenant()
 	{
+		$this->db->select('productos.*, categorias.nombre AS categoria_nombre');
 		$this->db->from($this->table);
-		$this->applyTenantScope($this->db);
+		$this->db->join('categorias', 'productos.categoria_id = categorias.id');
+		// Evitar ambigüedad de la columna tenant_id especificando la tabla
+		$this->db->where('productos.tenant_id', (int)$this->tenant_id);
 		$this->db->order_by('orden', 'ASC');
 		$query = $this->db->get();
 		return $query->result();
