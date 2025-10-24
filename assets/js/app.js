@@ -3,15 +3,27 @@
 	'use strict';
 
 	// Base URL del proyecto (definida en header) o fallback
-	const BASE = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL)
+	const BASE_URL = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL)
 		? window.IMENU_BASE_URL
 		: '/imenu/';
 
-	function appUrl(path) {
-		path = path || '';
-		if (path.charAt(0) === '/') path = path.slice(1);
-		return BASE + 'api/app/' + path;
+	// Función auxiliar para construir URLs
+	function url(path) {
+		return BASE_URL + path;
 	}
+
+	const api = {
+		categorias: url('CategoriasService/categorias'),
+		categorias_create: url('CategoriasService/categoria_create'),
+		categoria_update: (id) => url('CategoriasService/categoria_update/' + encodeURIComponent(id)),
+		categoria_delete: (id) => url('CategoriasService/categoria_delete/' + encodeURIComponent(id)),
+		productos: url('ProductosService/productos'),
+		producto_create: url('ProductosService/producto_create'),
+		producto_update: (id) => url('ProductosService/producto_update/' + encodeURIComponent(id)),
+		producto_delete: (id) => url('ProductosService/producto_delete/' + encodeURIComponent(id)),
+		productos_upload: url('ProductosService/producto_upload'),
+
+	};
 
 	// === CSRF helpers (CodeIgniter 3) ===
 	const CSRF_TOKEN_NAME = 'csrf_test_name';
@@ -51,7 +63,7 @@
 	// === Categorías ===
 	const Categories = {
 		load: function () {
-			fetch(appUrl('categorias'), { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+			fetch(api.categorias, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
 				.then(res => res.json())
 				.then(resp => {
 					if (!resp || resp.ok !== true) return;
@@ -83,35 +95,33 @@
 				orden: payload.orden,
 				activo: payload.activo
 			}, csrfData());
-			const url = id ? appUrl('categoria/' + encodeURIComponent(id)) : appUrl('categoria');
+
+			const url = id ? api.categoria_update(id) : api.categorias_create;
+
 			fetch(url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: new URLSearchParams(data)
-			})
-				.then(res => res.json())
-				.then(resp => {
-					if (callback) callback(null, resp);
-				})
-				.catch(err => {
-					if (callback) callback(err, null);
-				});
+			}).then(res => res.json()).then(resp => {
+				if (callback) callback(null, resp);
+			}).catch(err => {
+				if (callback) callback(err, null);
+			});
 		},
 
 		remove: function (id, callback) {
 			const data = csrfData();
 			const params = new URLSearchParams(data);
-			fetch(appUrl('categoria/' + encodeURIComponent(id)) + '?' + params.toString(), {
+			const url = api.categoria_delete(id) + '?' + params.toString();
+
+			fetch(url, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' }
-			})
-				.then(res => res.json())
-				.then(resp => {
-					if (callback) callback(null, resp);
-				})
-				.catch(err => {
-					if (callback) callback(err, null);
-				});
+			}).then(res => res.json()).then(resp => {
+				if (callback) callback(null, resp);
+			}).catch(err => {
+				if (callback) callback(err, null);
+			});
 		},
 
 		bindUI: function () {
@@ -146,7 +156,7 @@
 					Categories.save({ id, nombre, orden, activo }, function (err, resp) {
 						btnSave.disabled = false;
 						btnSave.textContent = 'Guardar';
-						
+
 						if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 							showAlert('Error', (resp && resp.msg) || 'Error al guardar', 'error');
 						} else {
@@ -224,7 +234,7 @@
 	// === Productos ===
 	const Products = {
 		loadCategories: function (selectedId) {
-			fetch(appUrl('categorias'), { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+			fetch(api.categorias, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
 				.then(res => res.json())
 				.then(resp => {
 					if (!resp || resp.ok !== true) return;
@@ -239,7 +249,7 @@
 		},
 
 		load: function () {
-			fetch(appUrl('productos'), { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+			fetch(api.productos, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
 				.then(res => res.json())
 				.then(resp => {
 					if (!resp || resp.ok !== true) return;
@@ -283,35 +293,29 @@
 				orden: payload.orden || 0,
 				activo: payload.activo
 			}, csrfData());
-			const url = id ? appUrl('producto/' + encodeURIComponent(id)) : appUrl('producto');
+			const url = id ? api.producto_update(id) : api.producto_create;
 			fetch(url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: new URLSearchParams(data)
-			})
-				.then(res => res.json())
-				.then(resp => {
-					if (callback) callback(null, resp);
-				})
-				.catch(err => {
-					if (callback) callback(err, null);
-				});
+			}).then(res => res.json()).then(resp => {
+				if (callback) callback(null, resp);
+			}).catch(err => {
+				if (callback) callback(err, null);
+			});
 		},
 
 		remove: function (id, callback) {
 			const data = csrfData();
 			const params = new URLSearchParams(data);
-			fetch(appUrl('producto/' + encodeURIComponent(id)) + '?' + params.toString(), {
+			fetch(api.producto_delete(id) + '?' + params.toString(), {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' }
-			})
-				.then(res => res.json())
-				.then(resp => {
-					if (callback) callback(null, resp);
-				})
-				.catch(err => {
-					if (callback) callback(err, null);
-				});
+			}).then(res => res.json()).then(resp => {
+				if (callback) callback(null, resp);
+			}).catch(err => {
+				if (callback) callback(err, null);
+			});
 		},
 
 		bindUI: function () {
@@ -357,7 +361,7 @@
 					Products.save({ id, nombre, descripcion, precio, categoria_id, activo, img_url }, function (err, resp) {
 						btnSave.disabled = false;
 						btnSave.textContent = 'Guardar';
-						
+
 						if (err || !resp || (resp.ok !== true && resp.ok !== 'true')) {
 							showAlert('Error', (resp && resp.msg) || 'Error al guardar', 'error');
 						} else {
