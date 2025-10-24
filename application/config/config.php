@@ -532,4 +532,4 @@ $config['rewrite_short_tags'] = FALSE;
 $config['proxy_ips'] = '';
 
 // Clave secreta para JWT
-$config['jwt_secret'] = getenv('JWT_SECRET'); // Se recomienda definir JWT_SECRET en el archivo .env
+$config['jwt_secret'] = $_ENV['JWT_SECRET']; // Se recomienda definir JWT_SECRET en el archivo .env
