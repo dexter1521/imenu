@@ -21,9 +21,17 @@ class PublicUser extends CI_Controller
 	{
 		$tenant = $this->tenant_model->get_by_slug_active($slug);
 		if (!$tenant) show_404();
-		$cats = $this->categoria_model->get_by_tenant($tenant->id, true);
-		$prods = $this->producto_model->get_by_tenant($tenant->id, true);
-		$aj   = $this->ajustes_model->get_by_tenant($tenant->id);
+		
+		// Establecer el tenant_id manualmente en los modelos para contexto público
+		$this->categoria_model->setTenantId($tenant->id);
+		$this->producto_model->setTenantId($tenant->id);
+		$this->ajustes_model->setTenantId($tenant->id);
+		
+		// Obtener categorías y productos activos
+		$cats = $this->categoria_model->get_all(true); // true = solo activos
+		$prods = $this->producto_model->get_all(true); // true = solo activos
+		$aj   = $this->ajustes_model->get_by_tenant();
+		
 		$data = compact('tenant', 'cats', 'prods', 'aj');
 		$this->load->view('public/menu', $data);
 	}
@@ -36,8 +44,15 @@ class PublicUser extends CI_Controller
 		if (!$slug) return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'msg' => 'slug requerido']));
 		$t = $this->tenant_model->get_by_slug_active($slug);
 		if (!$t) return $this->output->set_status_header(404)->set_output(json_encode(['ok' => false, 'msg' => 'tenant no encontrado']));
-		$cats = $this->categoria_model->get_by_tenant($t->id, true);
-		$prods = $this->producto_model->get_by_tenant($t->id, true);
+		
+		// Establecer el tenant_id manualmente en los modelos para contexto público
+		$this->categoria_model->setTenantId($t->id);
+		$this->producto_model->setTenantId($t->id);
+		
+		// Obtener categorías y productos activos
+		$cats = $this->categoria_model->get_all(true); // true = solo activos
+		$prods = $this->producto_model->get_all(true); // true = solo activos
+		
 		return $this->output->set_output(json_encode(['ok' => true, 'tenant' => $t, 'categorias' => $cats, 'productos' => $prods]));
 	}
 
@@ -61,6 +76,10 @@ class PublicUser extends CI_Controller
 		if (!$tenant) return $this->output->set_status_header(404)
 			->set_output(json_encode(['ok' => false, 'msg' => 'Tenant no encontrado']));
 
+		// Establecer el tenant_id manualmente para contexto público
+		$this->producto_model->setTenantId($tenant->id);
+		$this->pedido_model->setTenantId($tenant->id);
+
 		$items = json_decode($itemsJ, true);
 		if (!is_array($items) || empty($items)) {
 			return $this->output->set_status_header(400)
@@ -68,7 +87,8 @@ class PublicUser extends CI_Controller
 		}
 
 		try {
-			$pedido_id = $this->pedido_model->create($tenant->id, $nombre, $tel, $metodo, $items);
+			// El método create ya no requiere tenant_id como primer parámetro
+			$pedido_id = $this->pedido_model->create($nombre, $tel, $metodo, $items);
 		} catch (Exception $e) {
 			return $this->output->set_status_header(422)
 				->set_output(json_encode(['ok' => false, 'msg' => $e->getMessage()]));
@@ -85,7 +105,7 @@ class PublicUser extends CI_Controller
 		foreach ($items as $it) {
 			$pid = (int)$it['producto_id'];
 			$qty = (int)$it['cantidad'];
-			$p = $this->producto_model->get($pid, $tenant->id);
+			$p = $this->producto_model->get_by_id($pid);
 			if (!$p) continue;
 			$sub = ((float)$p->precio) * $qty;
 			$total += $sub;
