@@ -1,6 +1,10 @@
 # ============================================
 # iMenu - Configuración de Apache (.htaccess)
+# Versión Hardened
 # ============================================
+
+# Ocultar la firma del servidor (versión de Apache)
+ServerSignature Off
 
 # ------------------------------
 # REWRITE ENGINE Y URL AMIGABLES
@@ -8,7 +12,7 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Redirect HTTP to HTTPS (descomenta si usas SSL)
+    # -- PRODUCCIÓN: Redirección forzada a HTTPS --
     # RewriteCond %{HTTPS} off
     # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
     
@@ -18,19 +22,14 @@
     RewriteRule ^(.*)$ index.php/$1 [L]
 </IfModule>
 
-# ------------------------------
+# ---------------------------------------------
 # PROTECCIÓN DE ARCHIVOS Y CARPETAS SENSIBLES
-# ------------------------------
+# ---------------------------------------------
 
-# Bloquear acceso a carpetas del sistema CodeIgniter
-<IfModule mod_rewrite.c>
-    # Carpeta system/
-    RewriteCond %{REQUEST_URI} ^system.*
-    RewriteRule ^(.*)$ index.php?/access_denied [L]
-    
-    # Carpeta application/
-    RewriteCond %{REQUEST_URI} ^application.*
-    RewriteRule ^(.*)$ index.php?/access_denied [L]
+# Bloquear acceso a carpetas del framework y de desarrollo
+<IfModule mod_authz_core.c>
+    RedirectMatch 403 ^/(application|system|vendor|tests|docs)/.*
+    RedirectMatch 403 ^/(composer\.phar|phpunit\.xml|psalm\.xml)
 </IfModule>
 
 # Bloquear acceso a Git
@@ -45,7 +44,7 @@
 </FilesMatch>
 
 # Bloquear acceso a archivos de configuración
-<FilesMatch "\.(env|env\.local|env\.production|gitignore|htaccess|htpasswd)$">
+<FilesMatch "\.(env|env\..*|gitignore|htaccess|htpasswd|user\.ini)$">
     <IfModule authz_core_module>
         Require all denied
     </IfModule>
@@ -56,7 +55,7 @@
 </FilesMatch>
 
 # Bloquear acceso a archivos de proyecto
-<FilesMatch "(composer\.(json|lock)|package\.(json|lock)|\.editorconfig|TODO\.md|README\.md|license\.txt|readme\.rst)$">
+<FilesMatch "(composer\.(json|lock)|package\.(json|lock)|\.editorconfig|TODO.*|README.*|CHANGELOG.*|LICENSE.*|SECURITY\.md|Dockerfile|docker-compose\.yml)$">
     <IfModule authz_core_module>
         Require all denied
     </IfModule>
@@ -89,22 +88,49 @@
 </FilesMatch>
 
 # ------------------------------
+# PROTECCIÓN CONTRA ATAQUES COMUNES
+# ------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Bloquear File Injection
+    RewriteCond %{QUERY_STRING} (include|require|require_once|php:)\( [NC]
+    RewriteRule .* - [F,L]
+
+    # Bloquear SQL Injection básico
+    RewriteCond %{QUERY_STRING} (union|select|concat|char|cast|update|delete|insert|benchmark|outfile|load_file) [NC]
+    RewriteRule .* - [F,L]
+
+    # Bloquear Cross-Site Scripting (XSS) básico
+    RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# ------------------------------
 # HEADERS DE SEGURIDAD
 # ------------------------------
 <IfModule mod_headers.c>
     # Prevenir clickjacking
     Header always set X-Frame-Options "SAMEORIGIN"
     
-    # Prevenir MIME type sniffing
+    # Prevenir sniffing de tipo MIME
     Header always set X-Content-Type-Options "nosniff"
     
-    # Activar protección XSS
-    Header always set X-XSS-Protection "1; mode=block"
+    # X-XSS-Protection está obsoleto, es mejor confiar en una CSP fuerte.
+    # Header always set X-XSS-Protection "1; mode=block"
     
     # Referrer Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     
-    # Content Security Policy básico (ajusta según necesidades)
+    # -- PRODUCCIÓN: HSTS (Strict-Transport-Security) --
+    # Descomenta SOLO si tienes HTTPS funcionando correctamente.
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Permissions Policy (antes Feature-Policy) - Bloquea features sensibles por defecto
+    Header always set Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+    
+    # Content Security Policy (CSP) - El objetivo a largo plazo es eliminar 'unsafe-inline' y 'unsafe-eval'
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'"
     
     # Eliminar headers que revelan información del servidor
