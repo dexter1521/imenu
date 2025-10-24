@@ -88,10 +88,10 @@ class PedidosService extends MY_Controller
 		}
 
 		try {
-			$rows = $this->pedido_model->list_by_tenant($tid, $filters);
+			$rows = $this->pedido_model->list_by_tenant($filters);
 
 			// Contar total para paginación
-			$total = $this->pedido_model->count_by_tenant($tid, $filters);
+			$total = $this->pedido_model->count_by_tenant($filters);
 
 			echo json_encode([
 				'ok' => true,
@@ -156,7 +156,6 @@ class PedidosService extends MY_Controller
 		}
 
 		try {
-			$this->load->model('Pedido_model');
 			$pedido_data = [
 				'tenant_id' => $tid,
 				'nombre_cliente' => $nombre_cliente,
@@ -186,17 +185,10 @@ class PedidosService extends MY_Controller
 	{
 		header('Content-Type: application/json');
 
-		$tid = current_tenant_id();
-		$this->load->model('Pedido_model');
-		$row = $this->pedido_model->get_with_items($tid, (int)$id);
+		$row = $this->pedido_model->get_with_items((int)$id);
 
 		if (!$row) {
 			$this->_api_error(404, 'Pedido no encontrado');
-			return;
-		}
-
-		// Verificar que el pedido pertenece al tenant actual
-		if (!$this->_validate_tenant_access($row->tenant_id)) {
 			return;
 		}
 
@@ -229,8 +221,7 @@ class PedidosService extends MY_Controller
 		}
 
 		try {
-			$this->load->model('Pedido_model');
-			$updated = $this->pedido_model->update_estado($tid, (int)$id, $estado);
+			$updated = $this->pedido_model->update_estado((int)$id, $estado);
 
 			if ($updated) {
 				echo json_encode(['ok' => true, 'msg' => 'Estado actualizado']);
@@ -269,8 +260,7 @@ class PedidosService extends MY_Controller
 		}
 
 		try {
-			$this->load->model('Pedido_model');
-			$deleted = $this->pedido_model->delete_pedido($tid, $pedido_id);
+			$deleted = $this->pedido_model->delete_pedido($pedido_id);
 
 			if ($deleted) {
 				echo json_encode(['ok' => true, 'msg' => 'Pedido eliminado']);
@@ -308,7 +298,7 @@ class PedidosService extends MY_Controller
 		];
 
 		try {
-			$pedidos = $this->pedido_model->list_by_tenant($tid, $filters);
+			$pedidos = $this->pedido_model->list_by_tenant($filters);
 
 			if (empty($pedidos)) {
 				$this->_api_error(404, 'No hay pedidos para exportar');

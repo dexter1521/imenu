@@ -127,4 +127,27 @@ class Producto_model extends CI_Model
 
 		return $this->db->count_all_results($this->table);
 	}
+
+	/**
+	 * Alias de count() para compatibilidad
+	 * @param array $filters Filtros opcionales como ['activo' => 1]
+	 * @return int
+	 */
+	public function count_by_tenant($filters = [])
+	{
+		return $this->count($filters);
+	}
+
+	/**
+	 * Obtiene todos los productos del tenant actual
+	 * @return array
+	 */
+	public function get_by_tenant()
+	{
+		$this->db->from($this->table);
+		$this->applyTenantScope($this->db);
+		$this->db->order_by('orden', 'ASC');
+		$query = $this->db->get();
+		return $query->result();
+	}
 }

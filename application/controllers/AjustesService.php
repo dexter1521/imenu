@@ -1,7 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once APPPATH . 'traits/PlanLimitsTrait.php';
+
 class AjustesService extends MY_Controller
 {
+	use PlanLimitsTrait;
+
 	public function __construct()
 	{
 		parent::__construct();
@@ -61,10 +65,8 @@ class AjustesService extends MY_Controller
 	// ===== Ajustes =====
 	public function ajustes_get()
 	{
-		$tid = current_tenant_id();
-
 		try {
-			$row = $this->ajustes_model->get_by_tenant($tid);
+			$row = $this->ajustes_model->get_by_tenant();
 
 			// Si no hay ajustes, crear valores por defecto
 			if (!$row) {
@@ -154,31 +156,8 @@ class AjustesService extends MY_Controller
 		}
 
 		// Guardar
-		$this->ajustes_model->upsert($tid, $data);
+		$this->ajustes_model->upsert($data);
 		echo json_encode(['ok' => true]);
-	}
-
-	// ===== Límite por plan =====
-	private function enforce_limits($tenant_id, $tipo)
-	{
-		// $tipo: 'categorias'|'productos'
-		$plan = $this->tenant_model->get_with_plan($tenant_id);
-		if (!$plan) return; // sin plan = sin límite
-		if ($tipo === 'categorias') {
-			$count = $this->categoria_model->count_by_tenant($tenant_id);
-			if ($plan->limite_categorias && $count >= $plan->limite_categorias) {
-				http_response_code(422);
-				echo json_encode(['ok' => false, 'msg' => 'Límite de categorías alcanzado']);
-				exit;
-			}
-		} else if ($tipo === 'productos') {
-			$count = $this->producto_model->count_by_tenant($tenant_id);
-			if ($plan->limite_items && $count >= $plan->limite_items) {
-				http_response_code(422);
-				echo json_encode(['ok' => false, 'msg' => 'Límite de productos alcanzado']);
-				exit;
-			}
-		}
 	}
 
 	// ===== Configuración de Notificaciones =====

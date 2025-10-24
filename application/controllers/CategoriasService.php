@@ -1,7 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once APPPATH . 'traits/PlanLimitsTrait.php';
+
 class CategoriasService extends MY_Controller
 {
+	use PlanLimitsTrait;
+
 	public function __construct()
 	{
 		parent::__construct();
@@ -54,13 +58,13 @@ class CategoriasService extends MY_Controller
 		}
 		// Cargar modelos necesarios con alias en minúsculas
 		$this->load->model('Categoria_model', 'categoria_model');
+		$this->load->model('Tenant_model', 'tenant_model');
 	}
 
 	// ===== Categorías =====
 	public function categorias()
 	{ // GET
-		$tid = current_tenant_id();
-		$rows = $this->categoria_model->get_by_tenant($tid);
+		$rows = $this->categoria_model->get_by_tenant();
 		echo json_encode(['ok' => true, 'data' => $rows]);
 	}
 
@@ -79,19 +83,17 @@ class CategoriasService extends MY_Controller
 
 	public function categoria_update($id)
 	{ // POST
-		$tid = current_tenant_id();
 		$data = [];
 		foreach (['nombre', 'orden', 'activo'] as $k) {
 			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
 		}
-		$this->categoria_model->update($id, $tid, $data);
+		$this->categoria_model->update($id, $data);
 		echo json_encode(['ok' => true]);
 	}
 
 	public function categoria_delete($id)
 	{
-		$tid = current_tenant_id();
-		$this->categoria_model->delete($id, $tid);
+		$this->categoria_model->delete($id);
 		echo json_encode(['ok' => true]);
 	}
 }

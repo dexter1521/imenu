@@ -1,7 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once APPPATH . 'traits/PlanLimitsTrait.php';
+
 class ProductosService extends MY_Controller
 {
+	use PlanLimitsTrait;
+
 	public function __construct()
 	{
 		parent::__construct();
@@ -55,13 +59,13 @@ class ProductosService extends MY_Controller
 		// Cargar modelos necesarios con alias en minúsculas
 		$this->load->model('Producto_model', 'producto_model');
 		$this->load->model('Categoria_model', 'categoria_model');
+		$this->load->model('Tenant_model', 'tenant_model');
 	}
 
 	// ===== Productos =====
 	public function productos()
 	{ // GET
-		$tid = current_tenant_id();
-		$rows = $this->producto_model->get_by_tenant($tid);
+		$rows = $this->producto_model->get_by_tenant();
 		echo json_encode(['ok' => true, 'data' => $rows]);
 	}
 
@@ -86,20 +90,18 @@ class ProductosService extends MY_Controller
 
 	public function producto_update($id)
 	{
-		$tid = current_tenant_id();
 		$allowed = ['categoria_id', 'nombre', 'descripcion', 'precio', 'img_url', 'orden', 'activo', 'destacado'];
 		$data = [];
 		foreach ($allowed as $k) {
 			if (null !== ($v = $this->input->post($k))) $data[$k] = $v;
 		}
-		$this->producto_model->update($id, $tid, $data);
+		$this->producto_model->update($id, $data);
 		echo json_encode(['ok' => true]);
 	}
 
 	public function producto_delete($id)
 	{
-		$tid = current_tenant_id();
-		$this->producto_model->delete($id, $tid);
+		$this->producto_model->delete($id);
 		echo json_encode(['ok' => true]);
 	}
 

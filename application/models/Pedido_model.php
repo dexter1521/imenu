@@ -312,6 +312,69 @@ class Pedido_model extends CI_Model
 	}
 
 	/**
+	 * Cuenta la cantidad de pedidos del tenant actual
+	 * @param array $filters Filtros opcionales (fecha_inicio, fecha_fin, estado, etc.)
+	 * @return int
+	 */
+	public function count_by_tenant($filters = [])
+	{
+		$this->applyTenantScope($this->db);
+		
+		// Aplicar filtros de fecha si existen
+		if (!empty($filters['fecha_inicio'])) {
+			$this->db->where('creado_en >=', $filters['fecha_inicio']);
+		}
+		if (!empty($filters['fecha_fin'])) {
+			$this->db->where('creado_en <=', $filters['fecha_fin']);
+		}
+		if (!empty($filters['estado'])) {
+			$this->db->where('estado', $filters['estado']);
+		}
+		
+		return $this->db->from('pedidos')->count_all_results();
+	}
+
+	/**
+	 * Lista pedidos del tenant actual con filtros opcionales
+	 * @param array $filters Filtros opcionales (limit, order_by, orden, fecha_inicio, fecha_fin, estado)
+	 * @return array
+	 */
+	public function list_by_tenant($filters = [])
+	{
+		$this->db->select('p.*, COUNT(pi.id) as total_items');
+		$this->db->from('pedidos p');
+		$this->db->join('pedido_items pi', 'pi.pedido_id = p.id', 'left');
+		
+		// Aplicar scope de tenant
+		$this->applyTenantScope($this->db);
+		
+		// Aplicar filtros
+		if (!empty($filters['fecha_inicio'])) {
+			$this->db->where('p.creado_en >=', $filters['fecha_inicio']);
+		}
+		if (!empty($filters['fecha_fin'])) {
+			$this->db->where('p.creado_en <=', $filters['fecha_fin']);
+		}
+		if (!empty($filters['estado'])) {
+			$this->db->where('p.estado', $filters['estado']);
+		}
+		
+		$this->db->group_by('p.id');
+		
+		// Ordenamiento
+		$order_by = !empty($filters['order_by']) ? $filters['order_by'] : 'p.id';
+		$orden = !empty($filters['orden']) ? $filters['orden'] : 'DESC';
+		$this->db->order_by($order_by, $orden);
+		
+		// Límite
+		if (!empty($filters['limit'])) {
+			$this->db->limit($filters['limit']);
+		}
+		
+		return $this->db->get()->result();
+	}
+
+	/**
 	 * Obtener estadísticas globales de pedidos para dashboard admin
 	 * @return array
 	 */

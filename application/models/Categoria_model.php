@@ -114,4 +114,26 @@ class Categoria_model extends CI_Model
 		$this->applyTenantScope($this->db);
 		return $this->db->count_all_results($this->table);
 	}
+
+	/**
+	 * Alias de count() para compatibilidad
+	 * @return int
+	 */
+	public function count_by_tenant()
+	{
+		return $this->count();
+	}
+
+	/**
+	 * Obtiene todas las categorías del tenant actual
+	 * @return array
+	 */
+	public function get_by_tenant()
+	{
+		$this->db->from($this->table);
+		$this->applyTenantScope($this->db);
+		$this->db->order_by('orden', 'ASC');
+		$query = $this->db->get();
+		return $query->result();
+	}
 }

@@ -122,7 +122,7 @@ class App extends MY_Controller
 		$fin_hoy = $hoy . ' 23:59:59';
 
 		// Pedidos de hoy
-		$pedidos_hoy = $this->pedido_model->count_by_tenant($tid, [
+		$pedidos_hoy = $this->pedido_model->count_by_tenant([
 			'fecha_inicio' => $inicio_hoy,
 			'fecha_fin' => $fin_hoy
 		]);
@@ -135,10 +135,10 @@ class App extends MY_Controller
 		$ingresos_hoy = $this->db->get('pedidos')->row()->ingresos;
 
 		// Productos activos
-		$productos_activos = $this->producto_model->count_by_tenant($tid, ['activo' => 1]);
+		$productos_activos = $this->producto_model->count_by_tenant(['activo' => 1]);
 
 		// Total categorías
-		$total_categorias = $this->categoria_model->count_by_tenant($tid);
+		$total_categorias = $this->categoria_model->count_by_tenant();
 
 		// Información del plan y suscripción
 		$tenant_info = $this->tenant_model->get_with_plan($tid);
@@ -153,7 +153,7 @@ class App extends MY_Controller
 		}
 
 		// Pedidos recientes (últimos 5)
-		$pedidos_recientes = $this->pedido_model->list_by_tenant($tid, [
+		$pedidos_recientes = $this->pedido_model->list_by_tenant([
 			'limit' => 5,
 			'order_by' => 'creado_en',
 			'orden' => 'desc'
@@ -244,9 +244,9 @@ class App extends MY_Controller
 		}
 
 		// Obtener uso actual
-		$total_categorias = $this->categoria_model->count_by_tenant($tid);
-		$total_productos = $this->producto_model->count_by_tenant($tid);
-		$total_pedidos_mes = $this->pedido_model->count_by_tenant($tid, [
+		$total_categorias = $this->categoria_model->count_by_tenant();
+		$total_productos = $this->producto_model->count_by_tenant();
+		$total_pedidos_mes = $this->pedido_model->count_by_tenant([
 			'fecha_inicio' => date('Y-m-01 00:00:00'),
 			'fecha_fin' => date('Y-m-t 23:59:59')
 		]);
