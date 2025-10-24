@@ -1,17 +1,19 @@
 (function () {
 	'use strict';
 
-	const BASE_URL = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL) ?
-		window.IMENU_BASE_URL :
-		'/imenu/';
+	// Base URL del proyecto (definida en header) o fallback
+	const BASE_URL = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL)
+		? window.IMENU_BASE_URL
+		: '/imenu/';
 
+	// Función auxiliar para construir URLs
 	function url(path) {
 		return BASE_URL + path;
 	}
 
 	const api = {
 		dashboard: url('app/dashboard_data'),
-		pedidos: (id) => url('pedidosservice/pedido/') + encodeURIComponent(id),
+		pedido: (id) => url('PedidosService/pedido/' + encodeURIComponent(id)),
 	};
 
 	function formatCurrency(amount) {
@@ -142,7 +144,7 @@
 
 	// Función global para ver detalle del pedido
 	window.verDetallePedido = function (pedidoId) {
-		fetch(api.pedidos(pedidoId), {
+		fetch(api.pedido(pedidoId), {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'

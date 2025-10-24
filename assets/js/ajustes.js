@@ -5,12 +5,39 @@
 (function () {
 	'use strict';
 
+	// Base URL del proyecto (definida en header) o fallback
+	const BASE_URL = (typeof window.IMENU_BASE_URL !== 'undefined' && window.IMENU_BASE_URL)
+		? window.IMENU_BASE_URL
+		: '/imenu/';
+
+	// Función auxiliar para construir URLs
+	function url(path) {
+		return BASE_URL + path;
+	}
+
+	// === CSRF helpers (CodeIgniter 3) ===
+	const CSRF_TOKEN_NAME = window.IMENU_CSRF_TOKEN_NAME || 'csrf_test_name';
+	const CSRF_COOKIE_NAME = 'csrf_cookie_name';
+
+	function getCookie(name) {
+		const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+		return m ? decodeURIComponent(m[1]) : '';
+	}
+
+	function csrfData() {
+		const o = {};
+		o[CSRF_TOKEN_NAME] = getCookie(CSRF_COOKIE_NAME);
+		return o;
+	}
+
+	const api = {};
+
 	const Ajustes = {
 		/**
 		 * Cargar ajustes desde el servidor
 		 */
 		load: function () {
-			fetch(appUrl('ajustes'), {
+			fetch(url('api/app/ajustes'), {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json'
@@ -115,7 +142,7 @@
 			// Agregar CSRF
 			Object.assign(data, csrfData());
 
-			fetch(appUrl('ajustes'), {
+			fetch(url('api/app/ajustes'), {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded'

@@ -1,53 +1,51 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 
-<div class="container-fluid">
-	<!-- Encabezado -->
-	<div class="d-flex justify-content-between align-items-center mb-4">
-		<h1 class="h3 mb-0 text-gray-800">
-			<i class="fas fa-users"></i> Gestión de Staff
-		</h1>
-		<button type="button" class="btn btn-primary" id="btn-invitar">
-			<i class="fas fa-user-plus"></i> Invitar Usuario
+
+<!-- Encabezado -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+	<h1 class="h3 mb-0 text-gray-800"><i class="fas fa-users"></i> Gestión de Staff</h1>
+	<button type="button" class="btn btn-sm btn-primary shadow-sm" id="btn-invitar">
+		<i class="fas fa-user-plus"></i> Invitar Usuario
+	</button>
+</div>
+
+<!-- Tabla de Usuarios -->
+<div class="card shadow mb-4">
+	<div class="card-header py-3 d-flex justify-content-between align-items-center">
+		<h6 class="m-0 font-weight-bold text-primary">Lista de Usuarios</h6>
+		<button type="button" class="btn btn-sm btn-secondary" id="btn-refresh">
+			<i class="fas fa-sync-alt"></i> Actualizar
 		</button>
 	</div>
-
-	<!-- Tabla de Usuarios -->
-	<div class="card shadow mb-4">
-		<div class="card-header py-3 d-flex justify-content-between align-items-center">
-			<h6 class="m-0 font-weight-bold text-primary">Lista de Usuarios</h6>
-			<button type="button" class="btn btn-sm btn-secondary" id="btn-refresh">
-				<i class="fas fa-sync-alt"></i> Actualizar
-			</button>
-		</div>
-		<div class="card-body">
-			<div class="table-responsive">
-				<table class="table table-bordered" id="usuarios-table">
-					<thead>
-						<tr>
-							<th>ID</th>
-							<th>Nombre</th>
-							<th>Email</th>
-							<th>Rol</th>
-							<th>Estado</th>
-							<th>Creado</th>
-							<th>Acciones</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td colspan="7" class="text-center">
-								<div class="spinner-border text-primary" role="status">
-									<span class="sr-only">Cargando...</span>
-								</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
+	<div class="card-body">
+		<div class="table-responsive">
+			<table class="table table-bordered" id="usuarios-table">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Nombre</th>
+						<th>Email</th>
+						<th>Rol</th>
+						<th>Estado</th>
+						<th>Creado</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td colspan="7" class="text-center">
+							<div class="spinner-border text-primary" role="status">
+								<span class="sr-only">Cargando...</span>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	</div>
+</div>
 
-</div> <!-- /container-fluid -->
+
 
 <!-- Modal Invitar Usuario -->
 <div class="modal fade" id="invitarModal" tabindex="-1" role="dialog">
@@ -191,4 +189,3 @@
 </div>
 
 <script src="<?= base_url('assets/js/app-usuarios.js?v=' . time()); ?>"></script>
-

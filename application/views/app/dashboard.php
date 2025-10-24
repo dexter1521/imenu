@@ -155,7 +155,7 @@
 		<div class="card shadow mb-4">
 			<div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
 				<h6 class="m-0 font-weight-bold text-primary">Pedidos Recientes</h6>
-				<a href="<?= base_url('app/pedidos') ?>" class="btn btn-sm btn-primary">
+				<a href="<?= base_url('app/pedidos_view') ?>" class="btn btn-sm btn-primary">
 					Ver Todos <i class="fas fa-arrow-right ml-1"></i>
 				</a>
 			</div>
@@ -186,4 +186,5 @@
 	</div>
 </div>
 
-<script src="<?php echo base_url('assets/js/app-dashboard.js?v=' . time()); ?>"></script>
+
+<script src="<?= base_url('assets/js/app-dashboard.js?v=' . time()); ?>"></script>
