@@ -12,8 +12,9 @@
     </IfModule>
 </Files>
 
-# Solo permitir tipos de archivo específicos
-<FilesMatch "\.(jpg|jpeg|png|gif|svg|pdf|zip)$">
+
+# Solo permitir tipos de archivo específicos (sin svg)
+<FilesMatch "\.(jpg|jpeg|png|gif|pdf|zip)$">
     <IfModule authz_core_module>
         Require all granted
     </IfModule>
@@ -23,8 +24,19 @@
     </IfModule>
 </FilesMatch>
 
-# Bloquear todo lo demás
-<FilesMatch "^(?!\.(jpg|jpeg|png|gif|svg|pdf|zip)$).*$">
+
+# Bloquear SVG y todo lo demás
+<FilesMatch "\.(svg)$">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "^(?!\.(jpg|jpeg|png|gif|pdf|zip)$).*$">
     <IfModule authz_core_module>
         Require all denied
     </IfModule>

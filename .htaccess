@@ -65,16 +65,17 @@ ServerSignature Off
     </IfModule>
 </FilesMatch>
 
-# Bloquear acceso a install.php en producción (descomenta cuando esté en producción)
-# <Files "install.php">
-#     <IfModule authz_core_module>
-#         Require all denied
-#     </IfModule>
-#     <IfModule !authz_core_module>
-#         Order allow,deny
-#         Deny from all
-#     </IfModule>
-# </Files>
+
+# Bloquear acceso a install.php en producción
+<Files "install.php">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>
 
 # Bloquear archivos PHP de backup
 <FilesMatch "\.(bak|backup|old|orig|save|swp|tmp)$">
